@@ -1142,7 +1142,8 @@
     <!-- Custom JavaScript -->
     <script>
         // Global variables
-        let scriptUrl = 'https://script.google.com/macros/s/AKfycbz-oEqcUCItPstvV1GsVLVlfHoHfwcxdcRDbf4OCRd9fLEFZFgiPhViY6lxbQhD28nn/exec';
+        // Replace this URL with your actual deployed Google Apps Script web app URL
+        let scriptUrl = 'https://script.google.com/macros/s/AKfycbz-oEqcUCItPstvV1GsVLVlfHoHfwcxdcRDbf4OCRd9fLEFZFgiPhViY6lxbQhD28nn/exec';  // You'll need to deploy your Google Apps Script and paste the URL here
         let currentDoctorId = '';
         let currentDoctorName = '';
         let selectedPatientId = '';
@@ -1205,6 +1206,44 @@
         
         // Handle login
         function handleLogin(e) {
+            e.preventDefault();
+            
+            const doctorId = document.getElementById('doctorId').value;
+            const password = document.getElementById('password').value;
+            
+            // Show loading state
+            document.getElementById('loginButton').disabled = true;
+            document.getElementById('loginButton').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
+            
+            // Make API call to Google Apps Script
+            fetch(`${scriptUrl}?action=login&doctorId=${encodeURIComponent(doctorId)}&password=${encodeURIComponent(password)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Store doctor info
+                        currentDoctorId = data.doctorId;
+                        currentDoctorName = data.doctorName;
+                        
+                        // Save to session storage
+                        sessionStorage.setItem('doctorId', currentDoctorId);
+                        sessionStorage.setItem('doctorName', currentDoctorName);
+                        
+                        // Show dashboard
+                        showDashboard();
+                        loadPatients();
+                    } else {
+                        showNotification(data.message || 'Login failed', 'danger');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error connecting to server', 'danger');
+                    console.error('Login error:', error);
+                })
+                .finally(() => {
+                    // Reset button state
+                    document.getElementById('loginButton').disabled = false;
+                    document.getElementById('loginButton').innerHTML = 'Login';
+                });
             e.preventDefault();
             
             const doctorId = document.getElementById('doctorId').value;
@@ -1287,6 +1326,26 @@
         
         // Load patients for the current doctor
         function loadPatients() {
+            if (!currentDoctorId) return;
+            
+            // Show loading state
+            document.getElementById('patientsList').innerHTML = '<div class="spinner"></div>';
+            
+            // Make API call to Google Apps Script
+            fetch(`${scriptUrl}?action=getPatients&doctorId=${encodeURIComponent(currentDoctorId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        patients = data.patients;
+                        renderPatientsList();
+                    } else {
+                        showNotification(data.message || 'Failed to load patients', 'danger');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error connecting to server', 'danger');
+                    console.error('Load patients error:', error);
+                });
             fetch(`${scriptUrl}?action=getPatients&doctorId=${currentDoctorId}`)
                 .then(response => response.json())
                 .then(data => {
@@ -1365,6 +1424,39 @@
         
         // Load patient data
         function loadPatientData(patientId) {
+            if (!patientId) return;
+            
+            // Show loading state
+            document.getElementById('patientDataContainer').innerHTML = '<div class="spinner"></div>';
+            
+            // Make API call to Google Apps Script
+            fetch(`${scriptUrl}?action=getPatientData&patientId=${encodeURIComponent(patientId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        patientData = data.lastSevenDays;
+                        
+                        // Update dashboard with latest data
+                        updateDashboardWithPatientData(data.latestRecord, data.lastSevenDays);
+                        
+                        // Update charts
+                        updateCharts(data.latestRecord, data.lastSevenDays);
+                        
+                        // Update data table
+                        updateDataTable(data.lastSevenDays);
+                        
+                        // Update joint angles visualization if data exists
+                        if (data.latestRecord && data.latestRecord.jointAngle) {
+                            updateJointAngles(data.latestRecord.jointAngle);
+                        }
+                    } else {
+                        showNotification(data.message || 'Failed to load patient data', 'danger');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error connecting to server', 'danger');
+                    console.error('Load patient data error:', error);
+                });
             fetch(`${scriptUrl}?action=getPatientData&patientId=${patientId}`)
                 .then(response => response.json())
                 .then(data => {
@@ -1572,7 +1664,7 @@
                 data: { labels: [], datasets: [{ data: [], borderColor: 'var(--info-color)', tension: 0.4 }] },
                 options: defaultChartOptions
             });
-            window.sleepDetailChart =.new Chart(document.getElementById('sleepDetailChart'), {
+            window.sleepDetailChart = new Chart(document.getElementById('sleepDetailChart'), {
                 type: 'bar',
                 data: { labels: [], datasets: [{ data: [], backgroundColor: 'var(--warning-color)' }] },
                 options: defaultChartOptions
