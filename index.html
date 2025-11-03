@@ -622,11 +622,11 @@
             <form id="loginForm">
                 <div class="mb-3">
                     <label for="doctorId" class="form-label">Doctor ID</label>
-                    <input type="text" class="form-control" id="doctorId" required value="doctor1">
+                    <input type="text" class="form-control" id="doctorId" required>
                 </div>
                 <div class="mb-3">
                     <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="password" required value="password123">
+                    <input type="password" class="form-control" id="password" required>
                 </div>
                 <button type="submit" class="btn btn-primary w-100">Login</button>
             </form>
@@ -813,7 +813,7 @@
                         <div class="card">
                             <div class="card-header">
                                 <h5 class="mb-0">Joint Angles</h5>
-                                <button class="btn btn-sm btn-outline-primary" onclick="simulateData()">
+                                <button class="btn btn-sm btn-outline-primary" onclick="loadPatientData(selectedPatientId)">
                                     <i class="fas fa-sync-alt me-1"></i> Refresh
                                 </button>
                             </div>
@@ -1069,10 +1069,10 @@
                     <div class="card-header">
                         <h5 class="mb-0">Application Settings</h5>
                     </div>
-                    <div class="card-.body">
+                    <div class="card-body">
                         <div class="mb-3">
                             <label for="settingsDoctorName" class="form-label">Doctor Name</label>
-                            <input type="text" class="form-control" id="settingsDoctorName" value="Dr. Johnson">
+                            <input type="text" class="form-control" id="settingsDoctorName">
                         </div>
                         <div class="mb-3">
                             <label for="settingsHospital" class="form-label">Hospital/Clinic Name</label>
@@ -1141,52 +1141,14 @@
     
     <!-- Custom JavaScript -->
     <script>
-        // --- MOCK BACKEND ---
-        const mockData = {
-            doctors: [
-                { doctorId: 'doctor1', password: 'password123', doctorName: 'Dr. Smith' },
-                { doctorId: 'doctor2', password: 'password456', doctorName: 'Dr. Jones' }
-            ],
-            patients: [
-                { patientId: 'patient1', name: 'John Doe', age: 45, condition: 'Post-Knee Surgery', doctorId: 'doctor1' },
-                { patientId: 'patient2', name: 'Jane Roe', age: 62, condition: 'Stroke Recovery', doctorId: 'doctor1' },
-                { patientId: 'patient3', name: 'Peter Pan', age: 35, condition: 'Spinal Injury', doctorId: 'doctor2' }
-            ],
-            rehabData: {}
-        };
-
-        function generateMockRehabData(patientId) {
-            if (!mockData.rehabData[patientId]) {
-                mockData.rehabData[patientId] = [];
-                for (let i = 0; i < 30; i++) {
-                    const date = new Date();
-                    date.setDate(date.getDate() - i);
-                    mockData.rehabData[patientId].push({
-                        date: date.toISOString().split('T')[0],
-                        pulse: 60 + Math.floor(Math.random() * 20),
-                        movementMagnitude: 5 + Math.random() * 5,
-                        sleepQualityScore: 70 + Math.floor(Math.random() * 25),
-                        jointAngle: {
-                            knee: 90 + Math.floor(Math.random() * 40),
-                            elbow: 110 + Math.floor(Math.random() * 30),
-                            shoulder: 70 + Math.floor(Math.random() * 20),
-                            hip: 100 + Math.floor(Math.random() * 20)
-                        },
-                        isPulseAnomaly: Math.random() < 0.1
-                    });
-                }
-            }
-        }
-
-        // --- END MOCK BACKEND ---
-
-
         // Global variables
+        let scriptUrl = 'https://script.google.com/macros/s/AKfycbz-oEqcUCItPstvV1GsVLVlfHoHfwcxdcRDbf4OCRd9fLEFZFgiPhViY6lxbQhD28nn/exec';
         let currentDoctorId = '';
         let currentDoctorName = '';
         let selectedPatientId = '';
         let selectedPatientName = '';
         let patients = [];
+        let patientData = [];
         
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
@@ -1253,22 +1215,28 @@
             submitBtn.textContent = 'Logging in...';
             submitBtn.disabled = true;
 
-            setTimeout(() => {
-                const doctor = mockData.doctors.find(d => d.doctorId === doctorId && d.password === password);
-                if (doctor) {
-                    currentDoctorId = doctor.doctorId;
-                    currentDoctorName = doctor.doctorName;
-                    
-                    localStorage.setItem('doctorId', doctor.doctorId);
-                    localStorage.setItem('doctorName', doctor.doctorName);
-                    
-                    showDashboard();
-                } else {
-                    showNotification('Invalid credentials', 'danger');
-                }
-                submitBtn.textContent = originalText;
-                submitBtn.disabled = false;
-            }, 500);
+            fetch(`${scriptUrl}?action=login&doctorId=${doctorId}&password=${password}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        currentDoctorId = data.doctorId;
+                        currentDoctorName = data.doctorName;
+                        
+                        localStorage.setItem('doctorId', data.doctorId);
+                        localStorage.setItem('doctorName', data.doctorName);
+                        
+                        showDashboard();
+                    } else {
+                        showNotification(data.message || 'Login failed', 'danger');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error: ' + error.message, 'danger');
+                })
+                .finally(() => {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                });
         }
         
         // Handle logout
@@ -1319,8 +1287,19 @@
         
         // Load patients for the current doctor
         function loadPatients() {
-            patients = mockData.patients.filter(p => p.doctorId === currentDoctorId);
-            renderPatientsList();
+            fetch(`${scriptUrl}?action=getPatients&doctorId=${currentDoctorId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        patients = data.patients;
+                        renderPatientsList();
+                    } else {
+                        showNotification(data.message || 'Failed to load patients', 'danger');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error: ' + error.message, 'danger');
+                });
         }
         
         // Render patients list
@@ -1386,12 +1365,21 @@
         
         // Load patient data
         function loadPatientData(patientId) {
-            generateMockRehabData(patientId);
-            const patientData = mockData.rehabData[patientId];
-            const latestRecord = patientData[0];
-            const lastSevenDays = patientData.slice(0, 7);
-
-            updateDashboardWithPatientData(latestRecord, lastSevenDays);
+            fetch(`${scriptUrl}?action=getPatientData&patientId=${patientId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        patientData = data.data;
+                        const latestRecord = patientData[patientData.length - 1];
+                        const lastSevenDays = patientData.slice(-7);
+                        updateDashboardWithPatientData(latestRecord, lastSevenDays);
+                    } else {
+                        showNotification(data.message || 'Failed to load patient data', 'danger');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error: ' + error.message, 'danger');
+                });
         }
         
         // Update dashboard with patient data
@@ -1435,19 +1423,31 @@
             }
 
             const newPatient = {
-                patientId: 'patient' + (mockData.patients.length + 1),
                 name,
                 age,
                 condition,
                 doctorId: currentDoctorId
             };
 
-            mockData.patients.push(newPatient);
-            loadPatients();
-            
-            const modal = bootstrap.Modal.getInstance(document.getElementById('addPatientModal'));
-            modal.hide();
-            showNotification('Patient added successfully', 'success');
+            fetch(scriptUrl, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'addPatient', patient: newPatient }),
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    loadPatients();
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addPatientModal'));
+                    modal.hide();
+                    showNotification('Patient added successfully', 'success');
+                } else {
+                    showNotification(data.message || 'Failed to add patient', 'danger');
+                }
+            })
+            .catch(error => {
+                showNotification('Error: ' + error.message, 'danger');
+            });
         }
 
         function simulateData() {
@@ -1455,28 +1455,29 @@
                 showNotification('Please select a patient first', 'warning');
                 return;
             }
-            const date = new Date().toISOString().split('T')[0];
-            const newData = {
-                date: date,
-                pulse: 60 + Math.floor(Math.random() * 20),
-                movementMagnitude: 5 + Math.random() * 5,
-                sleepQualityScore: 70 + Math.floor(Math.random() * 25),
-                jointAngle: {
-                    knee: 90 + Math.floor(Math.random() * 40),
-                    elbow: 110 + Math.floor(Math.random() * 30),
-                    shoulder: 70 + Math.floor(Math.random() * 20),
-                    hip: 100 + Math.floor(Math.random() * 20)
-                },
-                isPulseAnomaly: Math.random() < 0.1
-            };
-            mockData.rehabData[selectedPatientId].unshift(newData);
-            loadPatientData(selectedPatientId);
-            showNotification('New patient data simulated', 'info');
+            
+            fetch(scriptUrl, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'simulateData', patientId: selectedPatientId }),
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    loadPatientData(selectedPatientId);
+                    showNotification('New patient data simulated', 'info');
+                } else {
+                    showNotification(data.message || 'Failed to simulate data', 'danger');
+                }
+            })
+            .catch(error => {
+                showNotification('Error: ' + error.message, 'danger');
+            });
         }
 
         function filterPatients(e) {
             const searchTerm = e.target.value.toLowerCase();
-            const filteredPatients = mockData.patients.filter(p => p.doctorId === currentDoctorId && p.name.toLowerCase().includes(searchTerm));
+            const filteredPatients = patients.filter(p => p.name.toLowerCase().includes(searchTerm));
             
             const patientsListEl = document.getElementById('patientsList');
             if (filteredPatients.length === 0) {
@@ -1519,6 +1520,7 @@
                 return;
             }
             showNotification(`Exporting report for ${selectedPatientName}...`, 'info');
+            // In a real app, this would trigger a download.
         }
 
         function showNotification(message, type = 'info') {
@@ -1570,7 +1572,7 @@
                 data: { labels: [], datasets: [{ data: [], borderColor: 'var(--info-color)', tension: 0.4 }] },
                 options: defaultChartOptions
             });
-            window.sleepDetailChart = new Chart(document.getElementById('sleepDetailChart'), {
+            window.sleepDetailChart =.new Chart(document.getElementById('sleepDetailChart'), {
                 type: 'bar',
                 data: { labels: [], datasets: [{ data: [], backgroundColor: 'var(--warning-color)' }] },
                 options: defaultChartOptions
@@ -1591,19 +1593,18 @@
             window.movementChart.data.datasets[0].data = lastSevenDays.map(d => d.movementMagnitude).reverse();
             window.movementChart.update();
 
-            const allPatientData = mockData.rehabData[selectedPatientId];
-            const allLabels = allPatientData.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })).reverse();
+            const allLabels = patientData.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })).reverse();
 
             window.pulseDetailChart.data.labels = allLabels;
-            window.pulseDetailChart.data.datasets[0].data = allPatientData.map(d => d.pulse).reverse();
+            window.pulseDetailChart.data.datasets[0].data = patientData.map(d => d.pulse).reverse();
             window.pulseDetailChart.update();
 
             window.movementDetailChart.data.labels = allLabels;
-            window.movementDetailChart.data.datasets[0].data = allPatientData.map(d => d.movementMagnitude).reverse();
+            window.movementDetailChart.data.datasets[0].data = patientData.map(d => d.movementMagnitude).reverse();
             window.movementDetailChart.update();
 
             window.sleepDetailChart.data.labels = allLabels;
-            window.sleepDetailChart.data.datasets[0].data = allPatientData.map(d => d.sleepQualityScore).reverse();
+            window.sleepDetailChart.data.datasets[0].data = patientData.map(d => d.sleepQualityScore).reverse();
             window.sleepDetailChart.update();
 
             window.jointAnglesChart.data.datasets[0].data = [
@@ -1616,7 +1617,7 @@
         }
 
         function updateRealtimeChart(metric) {
-            const todayData = mockData.rehabData[selectedPatientId].filter(d => new Date(d.date).toDateString() === new Date().toDateString());
+            const todayData = patientData.filter(d => new Date(d.date).toDateString() === new Date().toDateString());
             let data, color;
             switch (metric) {
                 case 'Movement':
