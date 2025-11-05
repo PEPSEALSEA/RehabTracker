@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rehabilitation Progress Tracker</title>
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <!-- Custom CSS -->
     <style>
         :root {
@@ -27,19 +28,19 @@
             --dark-color: #212529;
             --sidebar-width: 250px;
         }
-        
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        
+
         body {
             background-color: #f5f7fb;
             color: #333;
         }
-        
+
         /* Login Page Styles */
         .login-container {
             min-height: 100vh;
@@ -48,7 +49,7 @@
             justify-content: center;
             background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
         }
-        
+
         .login-card {
             width: 100%;
             max-width: 400px;
@@ -57,23 +58,23 @@
             background-color: white;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
-        
+
         .login-logo {
             text-align: center;
             margin-bottom: 30px;
         }
-        
+
         .login-logo i {
             font-size: 3rem;
             color: var(--primary-color);
             margin-bottom: 10px;
         }
-        
+
         .login-logo h2 {
             color: var(--dark-color);
             font-weight: 600;
         }
-        
+
         /* Hidden Configuration Styles */
         .config-trigger {
             position: absolute;
@@ -84,11 +85,11 @@
             cursor: pointer;
             transition: color 0.3s;
         }
-        
+
         .config-trigger:hover {
             color: rgba(255, 255, 255, 0.8);
         }
-        
+
         .config-section {
             background-color: rgba(13, 110, 253, 0.05);
             border-radius: 8px;
@@ -96,11 +97,11 @@
             margin-bottom: 20px;
             display: none;
         }
-        
+
         .config-section.show {
             display: block;
         }
-        
+
         /* Header Styles */
         .header {
             background-color: white;
@@ -113,7 +114,7 @@
             top: 0;
             z-index: 1000;
         }
-        
+
         .logo {
             display: flex;
             align-items: center;
@@ -121,17 +122,17 @@
             font-size: 1.5rem;
             color: var(--primary-color);
         }
-        
+
         .logo i {
             margin-right: 10px;
             font-size: 1.8rem;
         }
-        
+
         .user-info {
             display: flex;
             align-items: center;
         }
-        
+
         .user-avatar {
             width: 40px;
             height: 40px;
@@ -143,7 +144,7 @@
             justify-content: center;
             margin-right: 10px;
         }
-        
+
         /* Sidebar Styles */
         .sidebar {
             position: fixed;
@@ -157,7 +158,7 @@
             z-index: 999;
             overflow-y: auto;
         }
-        
+
         .nav-item {
             padding: 12px 20px;
             display: flex;
@@ -166,37 +167,37 @@
             text-decoration: none;
             transition: all 0.3s;
         }
-        
+
         .nav-item:hover {
             background-color: #f0f0f0;
             color: var(--primary-color);
         }
-        
+
         .nav-item.active {
             background-color: rgba(13, 110, 253, 0.1);
             color: var(--primary-color);
             border-left: 4px solid var(--primary-color);
         }
-        
+
         .nav-item i {
             margin-right: 10px;
             width: 20px;
             text-align: center;
         }
-        
+
         /* Main Content Styles */
         .main-content {
             margin-left: var(--sidebar-width);
             padding: 30px;
         }
-        
+
         .page-title {
             font-size: 1.8rem;
             font-weight: 600;
             margin-bottom: 30px;
             color: var(--dark-color);
         }
-        
+
         /* Card Styles */
         .card {
             border-radius: 10px;
@@ -205,12 +206,12 @@
             margin-bottom: 25px;
             transition: transform 0.3s, box-shadow 0.3s;
         }
-        
+
         .card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
         }
-        
+
         .card-header {
             background-color: white;
             border-bottom: 1px solid #eee;
@@ -220,26 +221,26 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .card-body {
             padding: 20px;
         }
-        
+
         /* Patient Card Styles */
         .patient-card {
             cursor: pointer;
             transition: all 0.3s;
         }
-        
+
         .patient-card:hover {
             background-color: rgba(13, 110, 253, 0.05);
         }
-        
+
         .patient-card.selected {
             background-color: rgba(13, 110, 253, 0.1);
             border-left: 4px solid var(--primary-color);
         }
-        
+
         .patient-avatar {
             width: 50px;
             height: 50px;
@@ -252,7 +253,7 @@
             font-size: 1.2rem;
             margin-right: 15px;
         }
-        
+
         /* Metric Card Styles */
         .metric-card {
             text-align: center;
@@ -260,33 +261,33 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         .metric-value {
             font-size: 2.5rem;
             font-weight: 700;
             margin: 10px 0;
         }
-        
+
         .metric-label {
             color: var(--secondary-color);
             font-size: 0.9rem;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        
+
         .metric-change {
             font-size: 0.85rem;
             margin-top: 5px;
         }
-        
+
         .metric-change.positive {
             color: var(--success-color);
         }
-        
+
         .metric-change.negative {
             color: var(--danger-color);
         }
-        
+
         .metric-icon {
             position: absolute;
             right: 20px;
@@ -294,7 +295,7 @@
             font-size: 2.5rem;
             opacity: 0.2;
         }
-        
+
         /* Progress Bar Styles */
         .progress {
             height: 10px;
@@ -302,17 +303,17 @@
             background-color: #e9ecef;
             margin-top: 10px;
         }
-        
+
         .progress-bar {
             border-radius: 5px;
         }
-        
+
         /* Table Styles */
         .table {
             width: 100%;
             border-collapse: collapse;
         }
-        
+
         .table th {
             background-color: #f8f9fa;
             font-weight: 600;
@@ -323,17 +324,17 @@
             border: none;
             padding: 12px 15px;
         }
-        
+
         .table td {
             padding: 12px 15px;
             vertical-align: middle;
             border-top: 1px solid #eee;
         }
-        
+
         .table tbody tr:hover {
             background-color: #f8f9fa;
         }
-        
+
         /* Alert Styles */
         .alert {
             border-radius: 8px;
@@ -343,27 +344,27 @@
             display: flex;
             align-items: center;
         }
-        
+
         .alert i {
             margin-right: 10px;
             font-size: 1.2rem;
         }
-        
+
         .alert-danger {
             background-color: rgba(220, 53, 69, 0.1);
             color: var(--danger-color);
         }
-        
+
         .alert-success {
             background-color: rgba(25, 135, 84, 0.1);
             color: var(--success-color);
         }
-        
+
         .alert-warning {
             background-color: rgba(255, 193, 7, 0.1);
             color: var(--warning-color);
         }
-        
+
         /* Button Styles */
         .btn {
             border-radius: 6px;
@@ -371,34 +372,34 @@
             font-weight: 500;
             transition: all 0.3s;
         }
-        
+
         .btn-primary {
             background-color: var(--primary-color);
             border-color: var(--primary-color);
         }
-        
+
         .btn-primary:hover {
             background-color: #0b5ed7;
             border-color: #0a58ca;
             transform: translateY(-2px);
         }
-        
+
         .btn-outline-primary {
             color: var(--primary-color);
             border-color: var(--primary-color);
         }
-        
+
         .btn-outline-primary:hover {
             background-color: var(--primary-color);
             border-color: var(--primary-color);
         }
-        
+
         /* Tab Styles */
         .nav-tabs {
             border-bottom: none;
             margin-bottom: 20px;
         }
-        
+
         .nav-tabs .nav-link {
             border: none;
             color: var(--secondary-color);
@@ -407,42 +408,42 @@
             border-radius: 8px 8px 0 0;
             margin-right: 5px;
         }
-        
+
         .nav-tabs .nav-link.active {
             background-color: white;
             color: var(--primary-color);
             border-bottom: 3px solid var(--primary-color);
         }
-        
+
         /* Status Badge Styles */
         .badge {
             padding: 6px 10px;
             border-radius: 20px;
             font-weight: 500;
         }
-        
+
         .badge-success {
             background-color: rgba(25, 135, 84, 0.1);
             color: var(--success-color);
         }
-        
+
         .badge-danger {
             background-color: rgba(220, 53, 69, 0.1);
             color: var(--danger-color);
         }
-        
+
         .badge-warning {
             background-color: rgba(255, 193, 7, 0.1);
             color: var(--warning-color);
         }
-        
+
         /* Chart Container Styles */
         .chart-container {
             position: relative;
             height: 300px;
             width: 100%;
         }
-        
+
         /* Loading Spinner */
         .spinner {
             border: 4px solid rgba(0, 0, 0, 0.1);
@@ -453,66 +454,69 @@
             animation: spin 1s linear infinite;
             margin: 20px auto;
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         /* Responsive Styles */
         @media (max-width: 992px) {
             .sidebar {
                 transform: translateX(-100%);
                 transition: transform 0.3s;
             }
-            
+
             .sidebar.active {
                 transform: translateX(0);
             }
-            
+
             .main-content {
                 margin-left: 0;
             }
-            
+
             .mobile-menu-toggle {
                 display: block;
             }
         }
-        
+
         @media (min-width: 993px) {
             .mobile-menu-toggle {
                 display: none;
             }
         }
-        
+
         /* Joint Angle Visualization */
         .joint-visualization {
             display: flex;
             justify-content: space-around;
             margin-top: 20px;
         }
-        
+
         .joint-item {
             text-align: center;
         }
-        
+
         .joint-circle {
             width: 80px;
             height: 80px;
             border-radius: 50%;
-            background: conic-gradient(
-                var(--primary-color) 0deg,
-                var(--primary-color) var(--angle),
-                #e9ecef var(--angle),
-                #e9ecef 360deg
-            );
+            background: conic-gradient(var(--primary-color) 0deg,
+                    var(--primary-color) var(--angle),
+                    #e9ecef var(--angle),
+                    #e9ecef 360deg);
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 auto 10px;
             position: relative;
         }
-        
+
         .joint-circle::before {
             content: '';
             position: absolute;
@@ -521,19 +525,19 @@
             border-radius: 50%;
             background-color: white;
         }
-        
+
         .joint-value {
             position: relative;
             z-index: 1;
             font-weight: 600;
             font-size: 1.2rem;
         }
-        
+
         .joint-name {
             font-size: 0.9rem;
             color: var(--secondary-color);
         }
-        
+
         /* Patient Info Card */
         .patient-info {
             display: flex;
@@ -543,35 +547,35 @@
             border-radius: 8px;
             margin-bottom: 20px;
         }
-        
+
         .patient-details h3 {
             margin: 0;
             font-size: 1.2rem;
         }
-        
+
         .patient-details p {
             margin: 5px 0 0;
             color: var(--secondary-color);
             font-size: 0.9rem;
         }
-        
+
         /* Empty State Styles */
         .empty-state {
             text-align: center;
             padding: 40px 20px;
             color: var(--secondary-color);
         }
-        
+
         .empty-state i {
             font-size: 3rem;
             margin-bottom: 15px;
             opacity: 0.5;
         }
-        
+
         .empty-state h4 {
             margin-bottom: 10px;
         }
-        
+
         /* Floating Action Button */
         .fab {
             position: fixed;
@@ -592,12 +596,12 @@
             transition: all 0.3s;
             z-index: 1000;
         }
-        
+
         .fab:hover {
             transform: scale(1.1);
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
         }
-        
+
         /* Developer Settings (Hidden) */
         .dev-settings {
             position: fixed;
@@ -610,6 +614,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Login Page -->
     <div id="loginPage" class="login-container">
@@ -618,7 +623,7 @@
                 <i class="fas fa-heartbeat"></i>
                 <h2>RehabTracker</h2>
             </div>
-            
+
             <form id="loginForm">
                 <div class="mb-3">
                     <label for="doctorId" class="form-label">Doctor ID</label>
@@ -630,13 +635,43 @@
                 </div>
                 <button type="submit" class="btn btn-primary w-100">Login</button>
             </form>
-            
+
             <div class="text-center mt-3">
-                <small class="text-muted">Demo credentials: doctor1 / password123</small>
+                <p>Don't have an account? <a href="#" id="showRegister">Register</a></p>
+            </div>
+
+            <!-- Registration Form (Hidden Initially) -->
+            <div id="registrationForm" style="display: none;">
+                <h4 class="text-center mb-4">Doctor Registration</h4>
+                <form id="registerForm">
+                    <div class="mb-3">
+                        <label for="regDoctorName" class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="regDoctorName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="regDoctorId" class="form-label">Doctor ID</label>
+                        <input type="text" class="form-control" id="regDoctorId" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="regPassword" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="regPassword" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="regConfirmPassword" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="regConfirmPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Register</button>
+                </form>
+                <div class="text-center mt-3">
+                    <p>Already have an account? <a href="#" id="showLogin">Login</a></p>
+                </div>
             </div>
         </div>
     </div>
-    
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+
     <!-- Main Dashboard (Hidden Initially) -->
     <div id="dashboardPage" style="display: none;">
         <!-- Header -->
@@ -658,7 +693,7 @@
                 <i class="fas fa-bars"></i>
             </button>
         </header>
-        
+
         <!-- Sidebar -->
         <nav class="sidebar" id="sidebar">
             <a href="#" class="nav-item active" data-page="patients">
@@ -678,7 +713,7 @@
                 <span>Settings</span>
             </a>
         </nav>
-        
+
         <!-- Main Content -->
         <main class="main-content">
             <!-- Patients Page -->
@@ -689,7 +724,7 @@
                         <i class="fas fa-plus me-2"></i>Add Patient
                     </button>
                 </div>
-                
+
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">Patient List</h5>
@@ -711,11 +746,11 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Dashboard Page -->
             <div id="dashboardPageContent" class="page-content" style="display: none;">
                 <h1 class="page-title">Patient Rehabilitation Dashboard</h1>
-                
+
                 <!-- Patient Info Card -->
                 <div class="patient-info">
                     <div class="patient-avatar">
@@ -723,7 +758,8 @@
                     </div>
                     <div class="patient-details">
                         <h3 id="selectedPatientName">Select a Patient</h3>
-                        <p id="selectedPatientDetails">Choose a patient from the list to view their rehabilitation progress</p>
+                        <p id="selectedPatientDetails">Choose a patient from the list to view their rehabilitation
+                            progress</p>
                     </div>
                     <div class="ms-auto">
                         <button class="btn btn-primary" id="exportReportBtn">
@@ -731,374 +767,323 @@
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- Alert for Anomaly Detection -->
                 <div class="alert alert-danger" id="anomalyAlert" style="display: none;">
                     <i class="fas fa-exclamation-triangle"></i>
                     <div>
-                        <strong>Alert:</strong> Abnormal pulse detected (pulse > 120 or < 40). Please review patient data.
+                        <strong>Alert:</strong> Abnormal pulse detected (pulse > 120 or < 40). Please review patient
+                            data. </div>
                     </div>
-                </div>
-                
-                <!-- Tabs for Different Views -->
-                <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="realtime-tab" data-bs-toggle="tab" data-bs-target="#realtime" type="button" role="tab" aria-controls="realtime" aria-selected="true">
-                            Real-Time Monitoring
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="progress-tab" data-bs-toggle="tab" data-bs-target="#progress" type="button" role="tab" aria-controls="progress" aria-selected="false">
-                            Progress Summary
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="details-tab" data-bs-toggle="tab" data-bs-target="#details" type="button" role="tab" aria-controls="details" aria-selected="false">
-                            Detailed Metrics
-                        </button>
-                    </li>
-                </ul>
-                
-                <div class="tab-content" id="dashboardTabsContent">
-                    <!-- Real-Time Monitoring Tab -->
-                    <div class="tab-pane fade show active" id="realtime" role="tabpanel" aria-labelledby="realtime-tab">
-                        <div class="row">
-                            <!-- Pulse Card -->
-                            <div class="col-md-4">
-                                <div class="card metric-card">
-                                    <i class="fas fa-heartbeat metric-icon"></i>
-                                    <div class="metric-label">Pulse</div>
-                                    <div class="metric-value" id="pulseValue">--</div>
-                                    <div class="metric-change positive">
-                                        <i class="fas fa-arrow-down"></i> 5% from yesterday
+
+                    <!-- Tabs for Different Views -->
+                    <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="realtime-tab" data-bs-toggle="tab"
+                                data-bs-target="#realtime" type="button" role="tab" aria-controls="realtime"
+                                aria-selected="true">
+                                Real-Time Monitoring
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="progress-tab" data-bs-toggle="tab" data-bs-target="#progress"
+                                type="button" role="tab" aria-controls="progress" aria-selected="false">
+                                Progress Summary
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="details-tab" data-bs-toggle="tab" data-bs-target="#details"
+                                type="button" role="tab" aria-controls="details" aria-selected="false">
+                                Detailed Metrics
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="dashboardTabsContent">
+                        <!-- Real-Time Monitoring Tab -->
+                        <div class="tab-pane fade show active" id="realtime" role="tabpanel"
+                            aria-labelledby="realtime-tab">
+                            <div class="row">
+                                <!-- Pulse Card -->
+                                <div class="col-md-4">
+                                    <div class="card metric-card">
+                                        <i class="fas fa-heartbeat metric-icon"></i>
+                                        <div class="metric-label">Pulse</div>
+                                        <div class="metric-value" id="pulseValue">--</div>
+                                        <div class="metric-change positive">
+                                            <i class="fas fa-arrow-down"></i> 5% from yesterday
+                                        </div>
+                                        <div class="progress">
+                                            <div class="progress-bar bg-success" style="width: 60%"></div>
+                                        </div>
                                     </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-success" style="width: 60%"></div>
+                                </div>
+
+                                <!-- Movement Magnitude Card -->
+                                <div class="col-md-4">
+                                    <div class="card metric-card">
+                                        <i class="fas fa-walking metric-icon"></i>
+                                        <div class="metric-label">Movement Magnitude</div>
+                                        <div class="metric-value" id="movementValue">--</div>
+                                        <div class="metric-change positive">
+                                            <i class="fas fa-arrow-up"></i> 12% from yesterday
+                                        </div>
+                                        <div class="progress">
+                                            <div class="progress-bar bg-info" style="width: 72%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sleep Quality Card -->
+                                <div class="col-md-4">
+                                    <div class="card metric-card">
+                                        <i class="fas fa-bed metric-icon"></i>
+                                        <div class="metric-label">Sleep Quality Score</div>
+                                        <div class="metric-value" id="sleepValue">--</div>
+                                        <div class="metric-change positive">
+                                            <i class="fas fa-arrow-up"></i> 3% from yesterday
+                                        </div>
+                                        <div class="progress">
+                                            <div class="progress-bar bg-warning" style="width: 78%"></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Movement Magnitude Card -->
-                            <div class="col-md-4">
-                                <div class="card metric-card">
-                                    <i class="fas fa-walking metric-icon"></i>
-                                    <div class="metric-label">Movement Magnitude</div>
-                                    <div class="metric-value" id="movementValue">--</div>
-                                    <div class="metric-change positive">
-                                        <i class="fas fa-arrow-up"></i> 12% from yesterday
-                                    </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-info" style="width: 72%"></div>
+
+                            <!-- Joint Angles Visualization -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Joint Angles</h5>
+                                    <button class="btn btn-sm btn-outline-primary"
+                                        onclick="loadPatientData(selectedPatientId)">
+                                        <i class="fas fa-sync-alt me-1"></i> Refresh
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="joint-visualization">
+                                        <div class="joint-item">
+                                            <div class="joint-circle" style="--angle: 95deg;">
+                                                <div class="joint-value">95°</div>
+                                            </div>
+                                            <div class="joint-name">Knee</div>
+                                        </div>
+                                        <div class="joint-item">
+                                            <div class="joint-circle" style="--angle: 120deg;">
+                                                <div class="joint-value">120°</div>
+                                            </div>
+                                            <div class="joint-name">Elbow</div>
+                                        </div>
+                                        <div class="joint-item">
+                                            <div class="joint-circle" style="--angle: 75deg;">
+                                                <div class="joint-value">75°</div>
+                                            </div>
+                                            <div class="joint-name">Shoulder</div>
+                                        </div>
+                                        <div class="joint-item">
+                                            <div class="joint-circle" style="--angle: 110deg;">
+                                                <div class="joint-value">110°</div>
+                                            </div>
+                                            <div class="joint-name">Hip</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Sleep Quality Card -->
-                            <div class="col-md-4">
-                                <div class="card metric-card">
-                                    <i class="fas fa-bed metric-icon"></i>
-                                    <div class="metric-label">Sleep Quality Score</div>
-                                    <div class="metric-value" id="sleepValue">--</div>
-                                    <div class="metric-change positive">
-                                        <i class="fas fa-arrow-up"></i> 3% from yesterday
+
+                            <!-- Real-time Chart -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Today's Activity</h5>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-primary active">Pulse</button>
+                                        <button type="button" class="btn btn-outline-primary">Movement</button>
+                                        <button type="button" class="btn btn-outline-primary">Sleep</button>
                                     </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-warning" style="width: 78%"></div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="realtimeChart"></canvas>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Joint Angles Visualization -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">Joint Angles</h5>
-                                <button class="btn btn-sm btn-outline-primary" onclick="loadPatientData(selectedPatientId)">
-                                    <i class="fas fa-sync-alt me-1"></i> Refresh
-                                </button>
-                            </div>
-                            <div class="card-body">
-                                <div class="joint-visualization">
-                                    <div class="joint-item">
-                                        <div class="joint-circle" style="--angle: 95deg;">
-                                            <div class="joint-value">95°</div>
+
+                        <!-- Progress Summary Tab -->
+                        <div class="tab-pane fade" id="progress" role="tabpanel" aria-labelledby="progress-tab">
+                            <div class="row">
+                                <!-- 7-Day Movement Chart -->
+                                <div class="col-md-8">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">7-Day Movement Trend</h5>
                                         </div>
-                                        <div class="joint-name">Knee</div>
-                                    </div>
-                                    <div class="joint-item">
-                                        <div class="joint-circle" style="--angle: 120deg;">
-                                            <div class="joint-value">120°</div>
-                                        </div>
-                                        <div class="joint-name">Elbow</div>
-                                    </div>
-                                    <div class="joint-item">
-                                        <div class="joint-circle" style="--angle: 75deg;">
-                                            <div class="joint-value">75°</div>
-                                        </div>
-                                        <div class="joint-name">Shoulder</div>
-                                    </div>
-                                    <div class="joint-item">
-                                        <div class="joint-circle" style="--angle: 110deg;">
-                                            <div class="joint-value">110°</div>
-                                        </div>
-                                        <div class="joint-name">Hip</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Real-time Chart -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">Today's Activity</h5>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-primary active">Pulse</button>
-                                    <button type="button" class="btn btn-outline-primary">Movement</button>
-                                    <button type="button" class="btn btn-outline-primary">Sleep</button>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="realtimeChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Progress Summary Tab -->
-                    <div class="tab-pane fade" id="progress" role="tabpanel" aria-labelledby="progress-tab">
-                        <div class="row">
-                            <!-- 7-Day Movement Chart -->
-                            <div class="col-md-8">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5 class="mb-0">7-Day Movement Trend</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="chart-container">
-                                            <canvas id="movementChart"></canvas>
+                                        <div class="card-body">
+                                            <div class="chart-container">
+                                                <canvas id="movementChart"></canvas>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            
-                            <!-- Recovery Progress -->
-                            <div class="col-md-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5 class="mb-0">Recovery Progress</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="text-center mb-4">
-                                            <div class="position-relative d-inline-block">
-                                                <canvas id="progressChart" width="200" height="200"></canvas>
-                                                <div class="position-absolute top-50 start-50 translate-middle">
-                                                    <h2 class="mb-0">68%</h2>
-                                                    <p class="text-muted mb-0">Complete</p>
-                                                </div>
-                                            </div>
+
+                                <!-- Progress Doughnut Chart -->
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Overall Progress</h5>
                                         </div>
-                                        <div class="mb-3">
-                                            <div class="d-flex justify-content-between mb-1">
-                                                <span>Flexibility</span>
-                                                <span>75%</span>
+                                        <div class="card-body text-center">
+                                            <div class="chart-container">
+                                                <canvas id="progressChart"></canvas>
                                             </div>
-                                            <div class="progress">
-                                                <div class="progress-bar bg-success" style="width: 75%"></div>
-                                            </div>
-                                        </div>
-                                        <div class="mb-3">
-                                            <div class="d-flex justify-content-between mb-1">
-                                                <span>Strength</span>
-                                                <span>60%</span>
-                                            </div>
-                                            <div class="progress">
-                                                <div class="progress-bar bg-info" style="width: 60%"></div>
-                                            </div>
-                                        </div>
-                                        <div class="mb-3">
-                                            <div class="d-flex justify-content-between mb-1">
-                                                <span>Endurance</span>
-                                                <span>70%</span>
-                                            </div>
-                                            <div class="progress">
-                                                <div class="progress-bar bg-warning" style="width: 70%"></div>
-                                            </div>
+                                            <p class="mt-3 mb-0">68% Complete</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- 7-Day Data Table -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">Last 7 Days Summary</h5>
-                                <button class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-file-excel me-1"></i> Export
-                                </button>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table">
-                                        <thead>
-                                            <tr>
-                                                <th>Date</th>
-                                                <th>Pulse</th>
-                                                <th>7-Day Pulse MA</th>
-                                                <th>Movement</th>
-                                                <th>7-Day Movement MA</th>
-                                                <th>Sleep Score</th>
-                                                <th>Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="dataTableBody">
-                                            <!-- Data will be populated here -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Detailed Metrics Tab -->
-                    <div class="tab-pane fade" id="details" role="tabpanel" aria-labelledby="details-tab">
-                        <div class="row">
-                            <!-- Pulse Details -->
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5 class="mb-0">Pulse Analysis</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="chart-container">
-                                            <canvas id="pulseDetailChart"></canvas>
+
+                        <!-- Detailed Metrics Tab -->
+                        <div class="tab-pane fade" id="details" role="tabpanel" aria-labelledby="details-tab">
+                            <div class="row">
+                                <!-- Pulse Detail Chart -->
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Pulse History</h5>
                                         </div>
-                                        <div class="row mt-4">
-                                            <div class="col-6">
-                                                <div class="text-center">
-                                                    <h4 class="text-success">68</h4>
-                                                    <p class="text-muted mb-0">Average</p>
-                                                </div>
+                                        <div class="card-body">
+                                            <div class="chart-container">
+                                                <canvas id="pulseDetailChart"></canvas>
                                             </div>
-                                            <div class="col-6">
-                                                <div class="text-center">
-                                                    <h4 class="text-danger">92</h4>
-                                                    <p class="text-muted mb-0">Peak</p>
-                                                </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Movement Detail Chart -->
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Movement History</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="chart-container">
+                                                <canvas id="movementDetailChart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sleep Detail Chart -->
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Sleep History</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="chart-container">
+                                                <canvas id="sleepDetailChart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Joint Angles Radar Chart -->
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Joint Angles History</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="chart-container">
+                                                <canvas id="jointAnglesChart"></canvas>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <!-- Movement Details -->
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5 class="mb-0">Movement Analysis</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="chart-container">
-                                            <canvas id="movementDetailChart"></canvas>
-                                        </div>
-                                        <div class="row mt-4">
-                                            <div class="col-6">
-                                                <div class="text-center">
-                                                    <h4 class="text-info">6.8</h4>
-                                                    <p class="text-muted mb-0">Average</p>
-                                                </div>
-                                            </div>
-                                            <div class="col-6">
-                                                <div class="text-center">
-                                                    <h4 class="text-primary">8.5</h4>
-                                                    <p class="text-muted mb-0">Peak</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+
+                            <!-- Data Table -->
+                            <div class="card mt-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Recent Data Entries</h5>
                                 </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Sleep Quality Details -->
-                        <div class="card mt-4">
-                            <div class="card-header">
-                                <h5 class="mb-0">Sleep Quality Analysis</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="sleepDetailChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Joint Angles History -->
-                        <div class="card mt-4">
-                            <div class="card-header">
-                                <h5 class="mb-0">Joint Angles History</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="jointAnglesChart"></canvas>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Pulse</th>
+                                                    <th>Pulse MA</th>
+                                                    <th>Movement</th>
+                                                    <th>Movement MA</th>
+                                                    <th>Sleep Score</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="dataTableBody">
+                                                <!-- Data will be populated here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Analytics Page -->
-            <div id="analyticsPage" class="page-content" style="display: none;">
-                <h1 class="page-title">Analytics</h1>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="empty-state">
-                            <i class="fas fa-chart-line"></i>
-                            <h4>Analytics Coming Soon</h4>
-                            <p>Advanced analytics features will be available in the next phase.</p>
+
+                <!-- Analytics Page -->
+                <div id="analyticsPage" class="page-content" style="display: none;">
+                    <h1 class="page-title">Analytics</h1>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="empty-state">
+                                <i class="fas fa-chart-line"></i>
+                                <h4>Analytics Coming Soon</h4>
+                                <p>Advanced analytics features will be available in the next phase.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Settings Page -->
-            <div id="settingsPage" class="page-content" style="display: none;">
-                <h1 class="page-title">Settings</h1>
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Application Settings</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="settingsDoctorName" class="form-label">Doctor Name</label>
-                            <input type="text" class="form-control" id="settingsDoctorName">
+
+                <!-- Settings Page -->
+                <div id="settingsPage" class="page-content" style="display: none;">
+                    <h1 class="page-title">Settings</h1>
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Application Settings</h5>
                         </div>
-                        <div class="mb-3">
-                            <label for="settingsHospital" class="form-label">Hospital/Clinic Name</label>
-                            <input type="text" class="form-control" id="settingsHospital" placeholder="Enter hospital/clinic name">
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <label for="settingsDoctorName" class="form-label">Doctor Name</label>
+                                <input type="text" class="form-control" id="settingsDoctorName">
+                            </div>
+                            <div class="mb-3">
+                                <label for="settingsHospital" class="form-label">Hospital/Clinic Name</label>
+                                <input type="text" class="form-control" id="settingsHospital"
+                                    placeholder="Enter hospital/clinic name">
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="settingsNotifications" checked>
+                                <label class="form-check-label" for="settingsNotifications">
+                                    Enable notifications for anomaly alerts
+                                </label>
+                            </div>
+                            <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
                         </div>
-                        <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="settingsNotifications" checked>
-                            <label class="form-check-label" for="settingsNotifications">
-                                Enable notifications for anomaly alerts
-                            </label>
-                        </div>
-                        <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
                     </div>
                 </div>
-            </div>
         </main>
-        
+
         <!-- Floating Action Button for Simulating Data -->
         <button class="fab" id="simulateDataBtn" title="Simulate Patient Data">
             <i class="fas fa-plus"></i>
         </button>
-        
+
     </div>
-    
+
     <!-- Add Patient Modal -->
-    <div class="modal fade" id="addPatientModal" tabindex="-1" aria-labelledby="addPatientModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addPatientModal" tabindex="-1" aria-labelledby="addPatientModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -1135,36 +1120,37 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <!-- Custom JavaScript -->
     <script>
         // Global variables
-        // Replace this URL with your actual deployed Google Apps Script web app URL
-        let scriptUrl = 'https://script.google.com/macros/s/AKfycbz-oEqcUCItPstvV1GsVLVlfHoHfwcxdcRDbf4OCRd9fLEFZFgiPhViY6lxbQhD28nn/exec';  // You'll need to deploy your Google Apps Script and paste the URL here
+        let scriptUrl = 'https://script.google.com/macros/s/AKfycbw8D-mzwX10ViL_klGklLQlFV94IDmQASbMImdJNPpLKKqBrT74xQ7xvr5FvUE8BCnG/exec';  // Replace with your actual URL
         let currentDoctorId = '';
         let currentDoctorName = '';
         let selectedPatientId = '';
         let selectedPatientName = '';
         let patients = [];
         let patientData = [];
-        
+
         // Initialize the application
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             setupEventListeners();
             checkLoginStatus();
         });
-        
-        
+
         // Set up event listeners
         function setupEventListeners() {
             document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            document.getElementById('registerForm').addEventListener('submit', handleRegister);
+            document.getElementById('showRegister').addEventListener('click', toggleForms);
+            document.getElementById('showLogin').addEventListener('click', toggleForms);
             document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-            
+
             document.querySelectorAll('.nav-item').forEach(item => {
-                item.addEventListener('click', function(e) {
+                item.addEventListener('click', function (e) {
                     e.preventDefault();
                     const page = this.getAttribute('data-page');
                     if (page) {
@@ -1172,18 +1158,18 @@
                     }
                 });
             });
-            
-            document.querySelector('.mobile-menu-toggle').addEventListener('click', function() {
+
+            document.querySelector('.mobile-menu-toggle').addEventListener('click', function () {
                 document.getElementById('sidebar').classList.toggle('active');
             });
-            
+
             document.getElementById('savePatientBtn').addEventListener('click', handleAddPatient);
             document.getElementById('simulateDataBtn').addEventListener('click', simulateData);
             document.getElementById('exportReportBtn').addEventListener('click', exportReport);
             document.getElementById('patientSearch').addEventListener('input', filterPatients);
-            
+
             document.querySelectorAll('.btn-group .btn').forEach(button => {
-                button.addEventListener('click', function() {
+                button.addEventListener('click', function () {
                     document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
                     this.classList.add('active');
                     const metric = this.textContent.trim();
@@ -1191,80 +1177,61 @@
                 });
             });
         }
-        
+
         // Check if user is already logged in
         function checkLoginStatus() {
             const savedDoctorId = localStorage.getItem('doctorId');
             const savedDoctorName = localStorage.getItem('doctorName');
-            
+
             if (savedDoctorId && savedDoctorName) {
                 currentDoctorId = savedDoctorId;
                 currentDoctorName = savedDoctorName;
                 showDashboard();
             }
         }
-        
+
+        // Toggle between login and registration forms
+        function toggleForms(e) {
+            e.preventDefault();
+            const loginForm = document.getElementById('loginForm');
+            const loginText = document.querySelector('.text-center.mt-3');
+            const registrationForm = document.getElementById('registrationForm');
+
+            if (this.id === 'showRegister') {
+                loginForm.style.display = 'none';
+                loginText.style.display = 'none';
+                registrationForm.style.display = 'block';
+            } else {
+                loginForm.style.display = 'block';
+                loginText.style.display = 'block';
+                registrationForm.style.display = 'none';
+            }
+        }
+
         // Handle login
         function handleLogin(e) {
             e.preventDefault();
-            
-            const doctorId = document.getElementById('doctorId').value;
-            const password = document.getElementById('password').value;
-            
-            // Show loading state
-            document.getElementById('loginButton').disabled = true;
-            document.getElementById('loginButton').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Logging in...';
-            
-            // Make API call to Google Apps Script
-            fetch(`${scriptUrl}?action=login&doctorId=${encodeURIComponent(doctorId)}&password=${encodeURIComponent(password)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Store doctor info
-                        currentDoctorId = data.doctorId;
-                        currentDoctorName = data.doctorName;
-                        
-                        // Save to session storage
-                        sessionStorage.setItem('doctorId', currentDoctorId);
-                        sessionStorage.setItem('doctorName', currentDoctorName);
-                        
-                        // Show dashboard
-                        showDashboard();
-                        loadPatients();
-                    } else {
-                        showNotification(data.message || 'Login failed', 'danger');
-                    }
-                })
-                .catch(error => {
-                    showNotification('Error connecting to server', 'danger');
-                    console.error('Login error:', error);
-                })
-                .finally(() => {
-                    // Reset button state
-                    document.getElementById('loginButton').disabled = false;
-                    document.getElementById('loginButton').innerHTML = 'Login';
-                });
-            e.preventDefault();
-            
-            const doctorId = document.getElementById('doctorId').value;
-            const password = document.getElementById('password').value;
-            
+
+            let doctorIdInput = document.getElementById('doctorId').value;
+            let passwordInput = document.getElementById('password').value;
+
             const submitBtn = e.target.querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
             submitBtn.textContent = 'Logging in...';
             submitBtn.disabled = true;
 
-            fetch(`${scriptUrl}?action=login&doctorId=${doctorId}&password=${password}`)
+            fetch(`${scriptUrl}?action=login&doctorId=${encodeURIComponent(doctorIdInput)}&password=${encodeURIComponent(passwordInput)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
                         currentDoctorId = data.doctorId;
                         currentDoctorName = data.doctorName;
-                        
+
                         localStorage.setItem('doctorId', data.doctorId);
                         localStorage.setItem('doctorName', data.doctorName);
-                        
+
                         showDashboard();
+                        loadPatients();
                     } else {
                         showNotification(data.message || 'Login failed', 'danger');
                     }
@@ -1277,7 +1244,55 @@
                     submitBtn.disabled = false;
                 });
         }
-        
+
+        // Handle registration
+        function handleRegister(e) {
+            e.preventDefault();
+
+            const doctorName = document.getElementById('regDoctorName').value.trim();
+            const doctorId = document.getElementById('regDoctorId').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+            if (password !== confirmPassword) {
+                showNotification('Passwords do not match', 'danger');
+                return;
+            }
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Registering...';
+            submitBtn.disabled = true;
+
+            fetch(scriptUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'register',
+                    doctorId: doctorId,
+                    doctorName: doctorName,
+                    password: password
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('Registration successful! Please login.', 'success');
+                        document.getElementById('showLogin').click();
+                    } else {
+                        showNotification(data.message || 'Registration failed', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Register error:', error);
+                    showNotification('Network error. Check URL and redeploy script.', 'danger');
+                })
+                .finally(() => {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                });
+        }
+
         // Handle logout
         function handleLogout() {
             localStorage.removeItem('doctorId');
@@ -1287,51 +1302,49 @@
             selectedPatientId = '';
             selectedPatientName = '';
             patients = [];
-            
+
             showLogin();
         }
-        
+
         // Show login page
         function showLogin() {
             document.getElementById('loginPage').style.display = 'flex';
             document.getElementById('dashboardPage').style.display = 'none';
         }
-        
+
         // Show dashboard
         function showDashboard() {
             document.getElementById('loginPage').style.display = 'none';
             document.getElementById('dashboardPage').style.display = 'block';
-            
+
             document.getElementById('doctorName').textContent = currentDoctorName;
             document.getElementById('settingsDoctorName').value = currentDoctorName;
-            
+
             loadPatients();
             showPage('patients');
         }
-        
+
         // Show a specific page
         function showPage(pageName) {
             document.querySelectorAll('.page-content').forEach(page => {
                 page.style.display = 'none';
             });
-            
+
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.classList.remove('active');
             });
-            
+
             const pageId = pageName === 'dashboard' ? 'dashboardPageContent' : `${pageName}Page`;
             document.getElementById(pageId).style.display = 'block';
             document.querySelector(`.nav-item[data-page="${pageName}"]`).classList.add('active');
         }
-        
+
         // Load patients for the current doctor
         function loadPatients() {
             if (!currentDoctorId) return;
-            
-            // Show loading state
+
             document.getElementById('patientsList').innerHTML = '<div class="spinner"></div>';
-            
-            // Make API call to Google Apps Script
+
             fetch(`${scriptUrl}?action=getPatients&doctorId=${encodeURIComponent(currentDoctorId)}`)
                 .then(response => response.json())
                 .then(data => {
@@ -1346,30 +1359,17 @@
                     showNotification('Error connecting to server', 'danger');
                     console.error('Load patients error:', error);
                 });
-            fetch(`${scriptUrl}?action=getPatients&doctorId=${currentDoctorId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        patients = data.patients;
-                        renderPatientsList();
-                    } else {
-                        showNotification(data.message || 'Failed to load patients', 'danger');
-                    }
-                })
-                .catch(error => {
-                    showNotification('Error: ' + error.message, 'danger');
-                });
         }
-        
+
         // Render patients list
         function renderPatientsList() {
             const patientsListEl = document.getElementById('patientsList');
-            
+
             if (patients.length === 0) {
                 patientsListEl.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><h4>No Patients Yet</h4><p>Add your first patient to start tracking their rehabilitation progress.</p></div>`;
                 return;
             }
-            
+
             let html = '<div class="row">';
             patients.forEach(patient => {
                 html += `
@@ -1389,63 +1389,53 @@
                 `;
             });
             html += '</div>';
-            
+
             patientsListEl.innerHTML = html;
-            
+
             document.querySelectorAll('.patient-card').forEach(card => {
-                card.addEventListener('click', function() {
+                card.addEventListener('click', function () {
                     const patientId = this.getAttribute('data-patient-id');
                     selectPatient(patientId);
                 });
             });
         }
-        
+
         // Select a patient
         function selectPatient(patientId) {
             const patient = patients.find(p => p.patientId === patientId);
             if (!patient) return;
-            
+
             selectedPatientId = patientId;
             selectedPatientName = patient.name;
-            
+
             document.getElementById('selectedPatientName').textContent = patient.name;
             document.getElementById('selectedPatientDetails').textContent = `Patient ID: ${patientId} • ${patient.condition} • Age: ${patient.age}`;
-            
+
             document.querySelectorAll('.patient-card').forEach(card => card.classList.remove('selected'));
             document.querySelector(`.patient-card[data-patient-id="${patientId}"]`).classList.add('selected');
-            
+
             showPage('dashboard');
             loadPatientData(patientId);
-            
+
             if (!window.realtimeChart) {
                 initializeCharts();
             }
         }
-        
+
         // Load patient data
         function loadPatientData(patientId) {
             if (!patientId) return;
-            
-            // Show loading state
-            document.getElementById('patientDataContainer').innerHTML = '<div class="spinner"></div>';
-            
-            // Make API call to Google Apps Script
+
             fetch(`${scriptUrl}?action=getPatientData&patientId=${encodeURIComponent(patientId)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
                         patientData = data.lastSevenDays;
-                        
-                        // Update dashboard with latest data
+
                         updateDashboardWithPatientData(data.latestRecord, data.lastSevenDays);
-                        
-                        // Update charts
                         updateCharts(data.latestRecord, data.lastSevenDays);
-                        
-                        // Update data table
                         updateDataTable(data.lastSevenDays);
-                        
-                        // Update joint angles visualization if data exists
+
                         if (data.latestRecord && data.latestRecord.jointAngle) {
                             updateJointAngles(data.latestRecord.jointAngle);
                         }
@@ -1457,89 +1447,81 @@
                     showNotification('Error connecting to server', 'danger');
                     console.error('Load patient data error:', error);
                 });
-            fetch(`${scriptUrl}?action=getPatientData&patientId=${patientId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        patientData = data.data;
-                        const latestRecord = patientData[patientData.length - 1];
-                        const lastSevenDays = patientData.slice(-7);
-                        updateDashboardWithPatientData(latestRecord, lastSevenDays);
-                    } else {
-                        showNotification(data.message || 'Failed to load patient data', 'danger');
-                    }
-                })
-                .catch(error => {
-                    showNotification('Error: ' + error.message, 'danger');
-                });
         }
-        
+
         // Update dashboard with patient data
         function updateDashboardWithPatientData(latestRecord, lastSevenDays) {
-            document.getElementById('pulseValue').textContent = latestRecord.pulse;
-            document.getElementById('movementValue').textContent = latestRecord.movementMagnitude.toFixed(1);
-            document.getElementById('sleepValue').textContent = latestRecord.sleepQualityScore;
-            
-            updateJointAngles(latestRecord.jointAngle);
-            
-            document.getElementById('anomalyAlert').style.display = latestRecord.isPulseAnomaly ? 'flex' : 'none';
-            
-            updateCharts(latestRecord, lastSevenDays);
-            updateDataTable(lastSevenDays);
+            if (latestRecord) {
+                document.getElementById('pulseValue').textContent = latestRecord.pulse || '--';
+                document.getElementById('movementValue').textContent = (latestRecord.movementMagnitude || 0).toFixed(1);
+                document.getElementById('sleepValue').textContent = latestRecord.sleepQualityScore || '--';
+
+                document.getElementById('anomalyAlert').style.display = latestRecord.isPulseAnomaly ? 'flex' : 'none';
+            }
         }
-        
+
         // Update joint angles visualization
         function updateJointAngles(jointAngles) {
             if (!jointAngles) return;
-            
+
             document.querySelectorAll('.joint-item').forEach(item => {
                 const jointName = item.querySelector('.joint-name').textContent.toLowerCase();
                 const jointValue = jointAngles[jointName];
-                
+
                 if (jointValue !== undefined) {
                     item.querySelector('.joint-value').textContent = jointValue + '°';
                     item.querySelector('.joint-circle').style.setProperty('--angle', jointValue + 'deg');
                 }
             });
         }
-        
+
         // Handle adding a new patient
         function handleAddPatient() {
-            const name = document.getElementById('patientName').value;
+            const name = document.getElementById('patientName').value.trim();
             const age = document.getElementById('patientAge').value;
             const condition = document.getElementById('patientCondition').value;
-            
+
             if (!name || !age || !condition) {
                 showNotification('Please fill in all fields', 'warning');
                 return;
             }
 
-            const newPatient = {
-                name,
-                age,
-                condition,
-                doctorId: currentDoctorId
-            };
+            const submitBtn = document.getElementById('savePatientBtn');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Saving...';
+            submitBtn.disabled = true;
 
             fetch(scriptUrl, {
                 method: 'POST',
-                body: JSON.stringify({ action: 'addPatient', patient: newPatient }),
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'addPatient',
+                    doctorId: currentDoctorId,
+                    patientName: name,
+                    patientAge: age,
+                    patientCondition: condition
+                })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    loadPatients();
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('addPatientModal'));
-                    modal.hide();
-                    showNotification('Patient added successfully', 'success');
-                } else {
-                    showNotification(data.message || 'Failed to add patient', 'danger');
-                }
-            })
-            .catch(error => {
-                showNotification('Error: ' + error.message, 'danger');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        loadPatients();
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('addPatientModal'));
+                        modal.hide();
+                        // Clear form
+                        document.getElementById('addPatientForm').reset();
+                        showNotification('Patient added successfully', 'success');
+                    } else {
+                        showNotification(data.message || 'Failed to add patient', 'danger');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error: ' + error.message, 'danger');
+                })
+                .finally(() => {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                });
         }
 
         function simulateData() {
@@ -1547,30 +1529,66 @@
                 showNotification('Please select a patient first', 'warning');
                 return;
             }
-            
+
+            // Generate random data
+            const now = new Date().toISOString();
+            const randomPulse = Math.floor(Math.random() * (100 - 60 + 1)) + 60;
+            const randomMovement = Math.random() * 10;
+            const randomSleep = Math.floor(Math.random() * (100 - 50 + 1)) + 50;
+            const randomJoint = {
+                knee: Math.floor(Math.random() * (180 - 0 + 1)) + 0,
+                elbow: Math.floor(Math.random() * (180 - 0 + 1)) + 0,
+                shoulder: Math.floor(Math.random() * (180 - 0 + 1)) + 0,
+                hip: Math.floor(Math.random() * (180 - 0 + 1)) + 0
+            };
+
             fetch(scriptUrl, {
                 method: 'POST',
-                body: JSON.stringify({ action: 'simulateData', patientId: selectedPatientId }),
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'submitData',
+                    timestamp: now,
+                    patientId: selectedPatientId,
+                    pulse: randomPulse,
+                    movementMagnitude: randomMovement,
+                    sleepQualityScore: randomSleep,
+                    jointAngle: randomJoint
+                })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    loadPatientData(selectedPatientId);
-                    showNotification('New patient data simulated', 'info');
-                } else {
-                    showNotification(data.message || 'Failed to simulate data', 'danger');
-                }
-            })
-            .catch(error => {
-                showNotification('Error: ' + error.message, 'danger');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('Simulated data added', 'success');
+                        loadPatientData(selectedPatientId);
+                    } else {
+                        showNotification(data.message || 'Simulation failed', 'danger');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error: ' + error.message, 'danger');
+                });
+        }
+
+        function showNotification(message, type = 'info') {
+            const notificationContainer = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} alert-dismissible fade show`;
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            notificationContainer.appendChild(notification);
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 150);
+            }, 5000);
         }
 
         function filterPatients(e) {
             const searchTerm = e.target.value.toLowerCase();
             const filteredPatients = patients.filter(p => p.name.toLowerCase().includes(searchTerm));
-            
+
             const patientsListEl = document.getElementById('patientsList');
             if (filteredPatients.length === 0) {
                 patientsListEl.innerHTML = `<div class="empty-state"><i class="fas fa-search"></i><h4>No patients found</h4><p>Try a different search term.</p></div>`;
@@ -1599,7 +1617,7 @@
             patientsListEl.innerHTML = html;
 
             document.querySelectorAll('.patient-card').forEach(card => {
-                card.addEventListener('click', function() {
+                card.addEventListener('click', function () {
                     const patientId = this.getAttribute('data-patient-id');
                     selectPatient(patientId);
                 });
@@ -1612,19 +1630,6 @@
                 return;
             }
             showNotification(`Exporting report for ${selectedPatientName}...`, 'info');
-            // In a real app, this would trigger a download.
-        }
-
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
-            notification.style.zIndex = '1050';
-            notification.textContent = message;
-            document.body.appendChild(notification);
-
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
         }
 
         // --- CHARTS ---
@@ -1633,7 +1638,7 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
-                scales: { 
+                scales: {
                     x: { grid: { display: false } },
                     y: { beginAtZero: true }
                 }
@@ -1678,14 +1683,14 @@
 
         function updateCharts(latestRecord, lastSevenDays) {
             updateRealtimeChart('Pulse');
-            
-            const last7DaysLabels = lastSevenDays.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })).reverse();
-            
+
+            const last7DaysLabels = lastSevenDays.map(d => new Date(d.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })).reverse();
+
             window.movementChart.data.labels = last7DaysLabels;
             window.movementChart.data.datasets[0].data = lastSevenDays.map(d => d.movementMagnitude).reverse();
             window.movementChart.update();
 
-            const allLabels = patientData.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })).reverse();
+            const allLabels = patientData.map(d => new Date(d.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })).reverse();
 
             window.pulseDetailChart.data.labels = allLabels;
             window.pulseDetailChart.data.datasets[0].data = patientData.map(d => d.pulse).reverse();
@@ -1699,17 +1704,19 @@
             window.sleepDetailChart.data.datasets[0].data = patientData.map(d => d.sleepQualityScore).reverse();
             window.sleepDetailChart.update();
 
-            window.jointAnglesChart.data.datasets[0].data = [
-                latestRecord.jointAngle.knee,
-                latestRecord.jointAngle.elbow,
-                latestRecord.jointAngle.shoulder,
-                latestRecord.jointAngle.hip
-            ];
-            window.jointAnglesChart.update();
+            if (latestRecord && latestRecord.jointAngle) {
+                window.jointAnglesChart.data.datasets[0].data = [
+                    latestRecord.jointAngle.knee || 0,
+                    latestRecord.jointAngle.elbow || 0,
+                    latestRecord.jointAngle.shoulder || 0,
+                    latestRecord.jointAngle.hip || 0
+                ];
+                window.jointAnglesChart.update();
+            }
         }
 
         function updateRealtimeChart(metric) {
-            const todayData = patientData.filter(d => new Date(d.date).toDateString() === new Date().toDateString());
+            const todayData = patientData.filter(d => new Date(d.timestamp).toDateString() === new Date().toDateString());
             let data, color;
             switch (metric) {
                 case 'Movement':
@@ -1724,7 +1731,7 @@
                     data = todayData.map(d => d.pulse);
                     color = 'var(--primary-color)';
             }
-            window.realtimeChart.data.labels = todayData.map((d, i) => `T-${i}`).reverse();
+            window.realtimeChart.data.labels = todayData.map((d, i) => `T-${todayData.length - i}`).reverse();
             window.realtimeChart.data.datasets[0].data = data.reverse();
             window.realtimeChart.data.datasets[0].borderColor = color;
             window.realtimeChart.update();
@@ -1734,21 +1741,23 @@
             const tableBody = document.getElementById('dataTableBody');
             let html = '';
             lastSevenDays.forEach(day => {
+                const avgPulse = (lastSevenDays.reduce((a, b) => a + (b.pulse || 0), 0) / lastSevenDays.length).toFixed(1);
+                const avgMovement = (lastSevenDays.reduce((a, b) => a + (b.movementMagnitude || 0), 0) / lastSevenDays.length).toFixed(1);
                 html += `
                     <tr>
-                        <td>${new Date(day.date).toLocaleDateString()}</td>
-                        <td>${day.pulse}</td>
-                        <td>${(lastSevenDays.reduce((a,b) => a + b.pulse, 0) / lastSevenDays.length).toFixed(1)}</td>
-                        <td>${day.movementMagnitude.toFixed(1)}</td>
-                        <td>${(lastSevenDays.reduce((a,b) => a + b.movementMagnitude, 0) / lastSevenDays.length).toFixed(1)}</td>
-                        <td>${day.sleepQualityScore}</td>
+                        <td>${new Date(day.timestamp).toLocaleDateString()}</td>
+                        <td>${day.pulse || '--'}</td>
+                        <td>${avgPulse}</td>
+                        <td>${(day.movementMagnitude || 0).toFixed(1)}</td>
+                        <td>${avgMovement}</td>
+                        <td>${day.sleepQualityScore || '--'}</td>
                         <td><span class="badge ${day.isPulseAnomaly ? 'badge-danger' : 'badge-success'}">${day.isPulseAnomaly ? 'Anomaly' : 'Normal'}</span></td>
                     </tr>
                 `;
             });
             tableBody.innerHTML = html;
         }
-
     </script>
 </body>
+
 </html>
