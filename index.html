@@ -1210,7 +1210,7 @@
             }
         }
 
-        let currentRealtimeMetric = 'pulse';
+        let currentRealtimeMetric = 'all';
 
         function updateCharts(latest, last7) {
             ensureCharts();
@@ -1221,15 +1221,23 @@
 
             if (charts.realtime) {
                 charts.realtime.data.labels = labels.length ? labels : [''];
-                const metricMap = {
-                    pulse: { data: pulse.length ? pulse : [null], label: 'Pulse', color: '#0d6efd' },
-                    movement: { data: move.length ? move : [null], label: 'Movement', color: '#0dcaf0' },
-                    sleep: { data: sleep.length ? sleep : [null], label: 'Sleep Score', color: '#ffc107' }
-                };
-                const cfg = metricMap[currentRealtimeMetric] || metricMap.pulse;
-                charts.realtime.data.datasets[0].data = cfg.data;
-                charts.realtime.data.datasets[0].label = cfg.label;
-                charts.realtime.data.datasets[0].borderColor = cfg.color;
+                if (currentRealtimeMetric === 'all') {
+                    charts.realtime.data.datasets = [
+                        { label: 'Pulse', data: pulse.length ? pulse : [null], borderColor: '#0d6efd', tension: 0.3 },
+                        { label: 'Movement', data: move.length ? move : [null], borderColor: '#0dcaf0', tension: 0.3 },
+                        { label: 'Sleep Score', data: sleep.length ? sleep : [null], borderColor: '#ffc107', tension: 0.3 }
+                    ];
+                } else {
+                    const metricMap = {
+                        pulse: { data: pulse.length ? pulse : [null], label: 'Pulse', color: '#0d6efd' },
+                        movement: { data: move.length ? move : [null], label: 'Movement', color: '#0dcaf0' },
+                        sleep: { data: sleep.length ? sleep : [null], label: 'Sleep Score', color: '#ffc107' }
+                    };
+                    const cfg = metricMap[currentRealtimeMetric] || metricMap.pulse;
+                    charts.realtime.data.datasets = [
+                        { label: cfg.label, data: cfg.data, borderColor: cfg.color, tension: 0.3 }
+                    ];
+                }
                 charts.realtime.update();
             }
             if (charts.movement7) {
