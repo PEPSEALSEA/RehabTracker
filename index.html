@@ -594,33 +594,14 @@
 </head>
 
 <body>
-    <!-- Search Patient Page -->
-    <div id="searchPage" class="login-container">
-        <div class="login-card">
-            <div class="login-logo">
-                <i class="fas fa-heartbeat"></i>
-                <h2>RehabTracker</h2>
-            </div>
-
-            <form id="searchForm">
-                <div class="mb-3">
-                    <label for="patientId" class="form-label">Patient ID</label>
-                    <input type="text" class="form-control" id="patientId" required placeholder="Enter patient ID">
-                </div>
-                <button type="submit" class="btn btn-primary w-100">Search Patient</button>
-            </form>
-
-            <div id="searchError" class="alert alert-danger mt-3" style="display: none;">
-                Patient not found. Please check the ID and try again.
-            </div>
-        </div>
-    </div>
+    <!-- Search Patient Page (hidden, deprecated) -->
+    <div id="searchPage" class="login-container" style="display: none;"></div>
 
     <!-- Notification Container -->
     <div id="notificationContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
 
     <!-- Main Dashboard (Hidden Initially) -->
-    <div id="dashboardPage" style="display: none;">
+    <div id="dashboardPage" style="display: block;">
         <!-- Header -->
         <header class="header">
             <div class="logo">
@@ -660,7 +641,7 @@
         <!-- Main Content -->
         <main class="main-content">
             <!-- Patients Page -->
-            <div id="patientsPage" class="page-content" style="display: none;">
+            <div id="patientsPage" class="page-content">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h1 class="page-title">My Patients</h1>
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPatientModal">
@@ -1147,8 +1128,7 @@
 
             try {
                 const result = await apiCall('', 'GET', {
-                    action: 'getPatients',
-                    doctorId: currentDoctorId
+                    action: 'getPatients'
                 });
 
                 patients = result.patients;
@@ -1165,13 +1145,12 @@
             const loading = await showLoading();
 
             try {
-                const patientName = document.getElementById('newPatientName').value;
-                const patientAge = document.getElementById('newPatientAge').value;
-                const patientCondition = document.getElementById('newPatientCondition').value;
+                const patientName = document.getElementById('patientName').value;
+                const patientAge = document.getElementById('patientAge').value;
+                const patientCondition = document.getElementById('patientCondition').value;
 
                 await apiCall('', 'POST', {
                     action: 'addPatient',
-                    doctorId: currentDoctorId,
                     patientName,
                     patientAge,
                     patientCondition
@@ -1180,6 +1159,7 @@
                 // Close modal and reload patients
                 const modal = bootstrap.Modal.getInstance(document.getElementById('addPatientModal'));
                 modal.hide();
+                document.getElementById('addPatientForm').reset();
                 await loadPatients();
                 showNotification('Patient added successfully!');
             } catch (error) {
@@ -1246,36 +1226,96 @@
             }
         }
 
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('searchPage').style.display = 'flex';
-            document.getElementById('dashboardPage').style.display = 'none';
-
-            const searchForm = document.getElementById('searchForm');
-            const searchError = document.getElementById('searchError');
-            searchForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                searchError.style.display = 'none';
-                const pid = document.getElementById('patientId').value.trim();
-                if (!pid) return;
-                try {
-                    selectedPatientId = pid;
-                    selectedPatientName = pid;
-                    await loadPatientData(pid);
-                    const nameEl = document.getElementById('selectedPatientName');
-                    const detailsEl = document.getElementById('selectedPatientDetails');
-                    if (nameEl) nameEl.textContent = `Patient ${selectedPatientName}`;
-                    if (detailsEl) detailsEl.textContent = `Viewing data for ${selectedPatientName}`;
-                    document.getElementById('searchPage').style.display = 'none';
-                    document.getElementById('dashboardPage').style.display = 'block';
-                    document.getElementById('dashboardPageContent').style.display = 'block';
-                } catch (err) {
-                    searchError.style.display = 'block';
-                }
+        function renderPatientsList() {
+            const list = document.getElementById('patientsList');
+            const search = document.getElementById('patientSearch');
+            const items = (patients || []).filter(p => {
+                if (!search || !search.value) return true;
+                const q = search.value.toLowerCase();
+                return (
+                    (p.name || '').toLowerCase().includes(q) ||
+                    (p.patientId || '').toLowerCase().includes(q) ||
+                    (p.condition || '').toLowerCase().includes(q)
+                );
             });
 
+            if (!items.length) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <h4>No Patients Yet</h4>
+                        <p>Add your first patient to start tracking their rehabilitation progress.</p>
+                    </div>`;
+                return;
+            }
+
+            list.innerHTML = '';
+            items.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'card patient-card mb-2';
+                card.innerHTML = `
+                    <div class="card-body d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="patient-avatar"><i class="fas fa-user"></i></div>
+                            <div>
+                                <div class="fw-semibold">${p.name} <span class="text-muted">(${p.patientId})</span></div>
+                                <div class="text-muted">Age: ${p.age} • ${p.condition}</div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm" data-action="view" data-id="${p.patientId}"><i class="fas fa-eye"></i></button>
+                            <button class="btn btn-outline-danger btn-sm" data-action="remove" data-id="${p.patientId}"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>`;
+                list.appendChild(card);
+            });
+
+            list.querySelectorAll('button[data-action]')
+                .forEach(btn => btn.addEventListener('click', async (e) => {
+                    const action = e.currentTarget.dataset.action;
+                    const pid = e.currentTarget.dataset.id;
+                    if (action === 'view') {
+                        selectedPatientId = pid;
+                        selectedPatientName = pid;
+                        const nameEl = document.getElementById('selectedPatientName');
+                        const detailsEl = document.getElementById('selectedPatientDetails');
+                        if (nameEl) nameEl.textContent = `Patient ${selectedPatientName}`;
+                        if (detailsEl) detailsEl.textContent = `Viewing data for ${selectedPatientName}`;
+                        document.getElementById('dashboardPageContent').style.display = 'block';
+                        await loadPatientData(pid);
+                    } else if (action === 'remove') {
+                        if (!confirm('Remove this patient and associated data?')) return;
+                        const loading = await showLoading();
+                        try {
+                            await apiCall('', 'POST', { action:'removePatient', patientId: pid });
+                            await loadPatients();
+                            showNotification('Patient removed', 'success');
+                        } catch (err) {
+                            // error handled globally
+                        } finally {
+                            hideLoading(loading);
+                        }
+                    }
+                }));
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('dashboardPage').style.display = 'block';
+            document.getElementById('patientsPage').style.display = 'block';
+            loadPatients();
+
             const backBtn = document.getElementById('backToSearchBtn');
-            if (backBtn) backBtn.addEventListener('click', backToSearch);
+            if (backBtn) backBtn.addEventListener('click', () => document.getElementById('dashboardPageContent').style.display = 'none');
+
+            const addForm = document.getElementById('addPatientForm');
+            addForm.addEventListener('submit', addNewPatient);
+            document.getElementById('savePatientBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                addNewPatient(e);
+            });
+            const searchInput = document.getElementById('patientSearch');
+            if (searchInput) searchInput.addEventListener('input', renderPatientsList);
 
             // Navigation
             document.querySelectorAll('.nav-item').forEach(item => {
