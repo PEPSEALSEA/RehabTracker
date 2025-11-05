@@ -1085,23 +1085,27 @@
         // API Functions
         async function apiCall(endpoint, method = 'GET', data = null) {
             const url = new URL(scriptUrl);
-            
+
             if (method === 'GET' && data) {
-                Object.keys(data).forEach(key => 
-                    url.searchParams.append(key, data[key])
-                );
+                Object.keys(data).forEach(key => {
+                    url.searchParams.append(key, data[key]);
+                });
             }
 
             try {
-                const response = await fetch(url, {
-                    method,
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: method !== 'GET' ? JSON.stringify(data) : undefined
-                });
+                const options = { method, mode: 'cors' };
 
+                if (method !== 'GET' && data) {
+                    const body = new URLSearchParams();
+                    Object.keys(data).forEach(key => {
+                        const val = data[key];
+                        body.append(key, typeof val === 'object' ? JSON.stringify(val) : String(val));
+                    });
+                    options.body = body;
+                    // No custom headers: keep it a simple request to avoid preflight
+                }
+
+                const response = await fetch(url, options);
                 const result = await response.json();
                 if (result.status === 'error') {
                     throw new Error(result.message);
