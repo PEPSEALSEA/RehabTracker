@@ -817,7 +817,8 @@
                                 <div class="card-header">
                                     <h5 class="mb-0">Today's Activity</h5>
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <button type="button" class="btn btn-outline-primary active" data-metric="pulse">Pulse</button>
+                                            <button type="button" class="btn btn-outline-primary active" data-metric="all">All</button>
+                                            <button type="button" class="btn btn-outline-primary" data-metric="pulse">Pulse</button>
                                             <button type="button" class="btn btn-outline-primary" data-metric="movement">Movement</button>
                                             <button type="button" class="btn btn-outline-primary" data-metric="sleep">Sleep</button>
                                         </div>
@@ -1133,6 +1134,9 @@
 
         let charts = {
             realtime: null,
+            realtimePulse: null,
+            realtimeMovement: null,
+            realtimeSleep: null,
             movement7: null,
             progress: null,
             pulseDetail: null,
