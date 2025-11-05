@@ -1131,6 +1131,126 @@
             }
         }
 
+        let charts = {
+            realtime: null,
+            movement7: null,
+            progress: null,
+            pulseDetail: null,
+            movementDetail: null,
+            sleepDetail: null,
+            jointAngles: null
+        };
+
+        function ensureCharts() {
+            const rtCtx = document.getElementById('realtimeChart');
+            if (rtCtx && !charts.realtime) {
+                charts.realtime = new Chart(rtCtx.getContext('2d'), {
+                    type: 'line',
+                    data: { labels: [], datasets: [{ label: 'Pulse', data: [], borderColor: '#0d6efd', tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: true }, y: { beginAtZero: true } } }
+                });
+            }
+
+            const mvCtx = document.getElementById('movementChart');
+            if (mvCtx && !charts.movement7) {
+                charts.movement7 = new Chart(mvCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: { labels: [], datasets: [{ label: 'Movement', data: [], backgroundColor: '#0dcaf0' }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                });
+            }
+
+            const prCtx = document.getElementById('progressChart');
+            if (prCtx && !charts.progress) {
+                charts.progress = new Chart(prCtx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: { labels: ['Complete', 'Remaining'], datasets: [{ data: [0, 100], backgroundColor: ['#198754', '#e9ecef'] }] },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
+                });
+            }
+
+            const pdCtx = document.getElementById('pulseDetailChart');
+            if (pdCtx && !charts.pulseDetail) {
+                charts.pulseDetail = new Chart(pdCtx.getContext('2d'), {
+                    type: 'line',
+                    data: { labels: [], datasets: [{ label: 'Pulse', data: [], borderColor: '#dc3545', tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                });
+            }
+
+            const mdCtx = document.getElementById('movementDetailChart');
+            if (mdCtx && !charts.movementDetail) {
+                charts.movementDetail = new Chart(mdCtx.getContext('2d'), {
+                    type: 'line',
+                    data: { labels: [], datasets: [{ label: 'Movement', data: [], borderColor: '#0dcaf0', tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                });
+            }
+
+            const sdCtx = document.getElementById('sleepDetailChart');
+            if (sdCtx && !charts.sleepDetail) {
+                charts.sleepDetail = new Chart(sdCtx.getContext('2d'), {
+                    type: 'line',
+                    data: { labels: [], datasets: [{ label: 'Sleep Score', data: [], borderColor: '#ffc107', tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+                });
+            }
+
+            const jaCtx = document.getElementById('jointAnglesChart');
+            if (jaCtx && !charts.jointAngles) {
+                charts.jointAngles = new Chart(jaCtx.getContext('2d'), {
+                    type: 'radar',
+                    data: { labels: ['Knee', 'Elbow', 'Shoulder', 'Hip'], datasets: [{ label: 'Angles', data: [0,0,0,0], backgroundColor: 'rgba(13,110,253,0.2)', borderColor: '#0d6efd' }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { r: { beginAtZero: true, max: 180 } } }
+                });
+            }
+        }
+
+        function updateCharts(latest, last7) {
+            ensureCharts();
+            const labels = last7.map(r => r.timestamp || '');
+            const pulse = last7.map(r => r.pulse ?? null);
+            const move = last7.map(r => r.movementMagnitude ?? null);
+            const sleep = last7.map(r => r.sleepQualityScore ?? null);
+
+            if (charts.realtime) {
+                charts.realtime.data.labels = labels.length ? labels : [''];
+                charts.realtime.data.datasets[0].data = pulse.length ? pulse : [null];
+                charts.realtime.update();
+            }
+            if (charts.movement7) {
+                charts.movement7.data.labels = labels.length ? labels : [''];
+                charts.movement7.data.datasets[0].data = move.length ? move : [0];
+                charts.movement7.update();
+            }
+            if (charts.progress) {
+                const progressVal = Math.max(0, Math.min(100, Math.round((sleep.filter(v => (v ?? 0) > 0).length / Math.max(1, sleep.length)) * 100)));
+                charts.progress.data.datasets[0].data = [progressVal, 100 - progressVal];
+                charts.progress.update();
+            }
+            if (charts.pulseDetail) {
+                charts.pulseDetail.data.labels = labels.length ? labels : [''];
+                charts.pulseDetail.data.datasets[0].data = pulse.length ? pulse : [null];
+                charts.pulseDetail.update();
+            }
+            if (charts.movementDetail) {
+                charts.movementDetail.data.labels = labels.length ? labels : [''];
+                charts.movementDetail.data.datasets[0].data = move.length ? move : [null];
+                charts.movementDetail.update();
+            }
+            if (charts.sleepDetail) {
+                charts.sleepDetail.data.labels = labels.length ? labels : [''];
+                charts.sleepDetail.data.datasets[0].data = sleep.length ? sleep : [null];
+                charts.sleepDetail.update();
+            }
+            if (charts.jointAngles) {
+                const ja = (latest && latest.jointAngle) || {};
+                const data = [ja.knee ?? 0, ja.elbow ?? 0, ja.shoulder ?? 0, ja.hip ?? 0];
+                charts.jointAngles.data.datasets[0].data = data;
+                charts.jointAngles.update();
+            }
+        }
+
         // Simple navigation back to search
         function backToSearch() {
             selectedPatientId = '';
@@ -1242,6 +1362,8 @@
                     tableBody.appendChild(tr);
                 });
             }
+
+            updateCharts(latest || null, last7);
         }
 
         function renderPatientsList() {
@@ -1348,6 +1470,16 @@
                         n.classList.remove('active')
                     );
                     this.classList.add('active');
+                    ensureCharts();
+                });
+            });
+
+            ensureCharts();
+
+            document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(btn => {
+                btn.addEventListener('shown.bs.tab', () => {
+                    ensureCharts();
+                    Object.values(charts).forEach(c => { if (c) c.resize(); });
                 });
             });
         });
