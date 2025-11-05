@@ -41,7 +41,6 @@
             color: #333;
         }
 
-        /* Login Page Styles */
         .login-container {
             min-height: 100vh;
             display: flex;
@@ -75,7 +74,6 @@
             font-weight: 600;
         }
 
-        /* Hidden Configuration Styles */
         .config-trigger {
             position: absolute;
             bottom: 10px;
@@ -102,7 +100,6 @@
             display: block;
         }
 
-        /* Header Styles */
         .header {
             background-color: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -145,7 +142,6 @@
             margin-right: 10px;
         }
 
-        /* Sidebar Styles */
         .sidebar {
             position: fixed;
             top: 70px;
@@ -185,7 +181,6 @@
             text-align: center;
         }
 
-        /* Main Content Styles */
         .main-content {
             margin-left: var(--sidebar-width);
             padding: 30px;
@@ -198,7 +193,6 @@
             color: var(--dark-color);
         }
 
-        /* Card Styles */
         .card {
             border-radius: 10px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -226,7 +220,6 @@
             padding: 20px;
         }
 
-        /* Patient Card Styles */
         .patient-card {
             cursor: pointer;
             transition: all 0.3s;
@@ -254,7 +247,6 @@
             margin-right: 15px;
         }
 
-        /* Metric Card Styles */
         .metric-card {
             text-align: center;
             padding: 20px;
@@ -296,7 +288,6 @@
             opacity: 0.2;
         }
 
-        /* Progress Bar Styles */
         .progress {
             height: 10px;
             border-radius: 5px;
@@ -308,7 +299,6 @@
             border-radius: 5px;
         }
 
-        /* Table Styles */
         .table {
             width: 100%;
             border-collapse: collapse;
@@ -335,7 +325,6 @@
             background-color: #f8f9fa;
         }
 
-        /* Alert Styles */
         .alert {
             border-radius: 8px;
             padding: 15px 20px;
@@ -365,7 +354,6 @@
             color: var(--warning-color);
         }
 
-        /* Button Styles */
         .btn {
             border-radius: 6px;
             padding: 8px 16px;
@@ -394,7 +382,6 @@
             border-color: var(--primary-color);
         }
 
-        /* Tab Styles */
         .nav-tabs {
             border-bottom: none;
             margin-bottom: 20px;
@@ -415,7 +402,6 @@
             border-bottom: 3px solid var(--primary-color);
         }
 
-        /* Status Badge Styles */
         .badge {
             padding: 6px 10px;
             border-radius: 20px;
@@ -437,14 +423,12 @@
             color: var(--warning-color);
         }
 
-        /* Chart Container Styles */
         .chart-container {
             position: relative;
             height: 300px;
             width: 100%;
         }
 
-        /* Loading Spinner */
         .spinner {
             border: 4px solid rgba(0, 0, 0, 0.1);
             width: 36px;
@@ -465,7 +449,6 @@
             }
         }
 
-        /* Responsive Styles */
         @media (max-width: 992px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -491,7 +474,6 @@
             }
         }
 
-        /* Joint Angle Visualization */
         .joint-visualization {
             display: flex;
             justify-content: space-around;
@@ -538,7 +520,6 @@
             color: var(--secondary-color);
         }
 
-        /* Patient Info Card */
         .patient-info {
             display: flex;
             align-items: center;
@@ -559,7 +540,6 @@
             font-size: 0.9rem;
         }
 
-        /* Empty State Styles */
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -576,7 +556,6 @@
             margin-bottom: 10px;
         }
 
-        /* Floating Action Button */
         .fab {
             position: fixed;
             bottom: 20px;
@@ -602,7 +581,6 @@
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
         }
 
-        /* Developer Settings (Hidden) */
         .dev-settings {
             position: fixed;
             bottom: 10px;
@@ -1126,8 +1104,7 @@
 
     <!-- Custom JavaScript -->
     <script>
-        // Global variables
-        let scriptUrl = 'https://script.google.com/macros/s/AKfycbwOIWUdbLHsMl4Bwgh8TiauBvPQKVOy7XEFXy6grauL8V55qaFS0D4xtKoTtXmJCAnmGw/exec';  // Replace with your actual URL
+        let scriptUrl = 'https://script.google.com/macros/s/AKfycbwOIWUdbLHsMl4Bwgh8TiauBvPQKVOy7XEFXy6grauL8V55qaFS0D4xtKoTtXmJCAnmGw/exec';  
         let currentDoctorId = '';
         let currentDoctorName = '';
         let selectedPatientId = '';
@@ -1135,693 +1112,270 @@
         let patients = [];
         let patientData = [];
 
-        // Initialize the application
-        document.addEventListener('DOMContentLoaded', function () {
-            setupEventListeners();
-            checkLoginStatus();
-        });
+        // Utility Functions
+        function showNotification(message, type = 'success') {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} alert-dismissible fade show`;
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            container.appendChild(notification);
+            setTimeout(() => notification.remove(), 5000);
+        }
 
-        // Set up event listeners
-        function setupEventListeners() {
-            document.getElementById('loginForm').addEventListener('submit', handleLogin);
-            document.getElementById('registerForm').addEventListener('submit', handleRegister);
-            document.getElementById('showRegister').addEventListener('click', toggleForms);
-            document.getElementById('showLogin').addEventListener('click', toggleForms);
-            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    const page = this.getAttribute('data-page');
-                    if (page) {
-                        showPage(page);
-                    }
-                });
-            });
-
-            document.querySelector('.mobile-menu-toggle').addEventListener('click', function () {
-                document.getElementById('sidebar').classList.toggle('active');
-            });
-
-            document.getElementById('savePatientBtn').addEventListener('click', handleAddPatient);
-            document.getElementById('simulateDataBtn').addEventListener('click', simulateData);
-            document.getElementById('exportReportBtn').addEventListener('click', exportReport);
-            document.getElementById('patientSearch').addEventListener('input', filterPatients);
-
-            document.querySelectorAll('.btn-group .btn').forEach(button => {
-                button.addEventListener('click', function () {
-                    document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
-                    this.classList.add('active');
-                    const metric = this.textContent.trim();
-                    updateRealtimeChart(metric);
-                });
+        function showLoading() {
+            return new Promise(resolve => {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'spinner';
+                document.body.appendChild(loadingDiv);
+                setTimeout(() => resolve(loadingDiv), 100);
             });
         }
 
-        // Check if user is already logged in
-        function checkLoginStatus() {
-            const savedDoctorId = localStorage.getItem('doctorId');
-            const savedDoctorName = localStorage.getItem('doctorName');
-
-            if (savedDoctorId && savedDoctorName) {
-                currentDoctorId = savedDoctorId;
-                currentDoctorName = savedDoctorName;
-                showDashboard();
-            }
+        function hideLoading(loadingDiv) {
+            if (loadingDiv) loadingDiv.remove();
         }
 
-        // Toggle between login and registration forms
-        function toggleForms(e) {
-            e.preventDefault();
-            const loginForm = document.getElementById('loginForm');
-            const loginText = document.querySelector('.text-center.mt-3');
-            const registrationForm = document.getElementById('registrationForm');
-
-            if (this.id === 'showRegister') {
-                loginForm.style.display = 'none';
-                loginText.style.display = 'none';
-                registrationForm.style.display = 'block';
-            } else {
-                loginForm.style.display = 'block';
-                loginText.style.display = 'block';
-                registrationForm.style.display = 'none';
+        // API Functions
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            const url = new URL(scriptUrl);
+            
+            if (method === 'GET' && data) {
+                Object.keys(data).forEach(key => 
+                    url.searchParams.append(key, data[key])
+                );
             }
-        }
 
-        // Handle login
-        function handleLogin(e) {
-            e.preventDefault();
-
-            let doctorIdInput = document.getElementById('doctorId').value;
-            let passwordInput = document.getElementById('password').value;
-
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
-            submitBtn.textContent = 'Logging in...';
-            submitBtn.disabled = true;
-
-            fetch(`${scriptUrl}?action=login&doctorId=${encodeURIComponent(doctorIdInput)}&password=${encodeURIComponent(passwordInput)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        currentDoctorId = data.doctorId;
-                        currentDoctorName = data.doctorName;
-
-                        localStorage.setItem('doctorId', data.doctorId);
-                        localStorage.setItem('doctorName', data.doctorName);
-
-                        showDashboard();
-                        loadPatients();
-                    } else {
-                        showNotification(data.message || 'Login failed', 'danger');
-                    }
-                })
-                .catch(error => {
-                    showNotification('Error: ' + error.message, 'danger');
-                })
-                .finally(() => {
-                    submitBtn.textContent = originalText;
-                    submitBtn.disabled = false;
+            try {
+                const response = await fetch(url, {
+                    method,
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: method !== 'GET' ? JSON.stringify(data) : undefined
                 });
+
+                const result = await response.json();
+                if (result.status === 'error') {
+                    throw new Error(result.message);
+                }
+                return result;
+            } catch (error) {
+                showNotification(error.message, 'danger');
+                throw error;
+            }
         }
 
-        // Handle registration
-        function handleRegister(e) {
-            e.preventDefault();
-            const form = document.getElementById('registrationForm');
-            const doctorId = form.querySelector('#regDoctorId').value;
-            const doctorName = form.querySelector('#regDoctorName').value;
-            const password = form.querySelector('#regPassword').value;
-            const confirmPassword = form.querySelector('#regConfirmPassword').value;
+        // Authentication Functions
+        async function handleLogin(event) {
+            event.preventDefault();
+            const loading = await showLoading();
 
-            // Basic validation
-            if (!doctorId || !doctorName || !password || !confirmPassword) {
-                showNotification('All fields are required', 'error');
-                return;
+            try {
+                const doctorId = document.getElementById('doctorId').value;
+                const password = document.getElementById('password').value;
+
+                const result = await apiCall('', 'GET', {
+                    action: 'login',
+                    doctorId,
+                    password
+                });
+
+                currentDoctorId = result.doctorId;
+                currentDoctorName = result.doctorName;
+                document.getElementById('doctorName').textContent = currentDoctorName;
+
+                // Save to session storage
+                sessionStorage.setItem('currentDoctorId', currentDoctorId);
+                sessionStorage.setItem('currentDoctorName', currentDoctorName);
+
+                // Switch to dashboard
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('dashboardPage').style.display = 'block';
+
+                // Load initial data
+                await loadPatients();
+                showNotification('Successfully logged in!');
+            } catch (error) {
+                console.error('Login error:', error);
+            } finally {
+                hideLoading(loading);
             }
+        }
 
-            if (password !== confirmPassword) {
-                showNotification('Passwords do not match', 'error');
-                return;
-            }
+        async function handleRegister(event) {
+            event.preventDefault();
+            const loading = await showLoading();
 
-            if (password.length < 6) {
-                showNotification('Password must be at least 6 characters', 'error');
-                return;
-            }
+            try {
+                const doctorId = document.getElementById('registerDoctorId').value;
+                const doctorName = document.getElementById('registerName').value;
+                const password = document.getElementById('registerPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
 
-            // Show loading state
-            const submitButton = form.querySelector('button[type="submit"]');
-            const originalText = submitButton.textContent;
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Registering...';
+                if (password !== confirmPassword) {
+                    throw new Error('Passwords do not match');
+                }
 
-            // Make the registration request
-            fetch(scriptUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
+                await apiCall('', 'POST', {
                     action: 'register',
-                    doctorId: doctorId,
-                    doctorName: doctorName,
-                    password: password
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.status === 'success') {
-                    showNotification('Registration successful! Please login.', 'success');
-                    toggleForms(); // Switch back to login form
-                } else {
-                    showNotification(data.message || 'Registration failed', 'error');
-                }
-            })
-            .catch(error => {
+                    doctorId,
+                    doctorName,
+                    password
+                });
+
+                showNotification('Registration successful! Please login.');
+                toggleForms(); // Switch back to login form
+            } catch (error) {
                 console.error('Registration error:', error);
-                showNotification('Registration failed. Please try again.', 'error');
-            })
-            .finally(() => {
-                // Reset button state
-                submitButton.disabled = false;
-                submitButton.textContent = originalText;
-            });
-            e.preventDefault();
-
-            const doctorName = document.getElementById('regDoctorName').value.trim();
-            const doctorId = document.getElementById('regDoctorId').value.trim();
-            const password = document.getElementById('regPassword').value;
-            const confirmPassword = document.getElementById('regConfirmPassword').value;
-
-            if (password !== confirmPassword) {
-                showNotification('Passwords do not match', 'danger');
-                return;
+            } finally {
+                hideLoading(loading);
             }
-
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
-            submitBtn.textContent = 'Registering...';
-            submitBtn.disabled = true;
-
-            fetch(scriptUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'register',
-                    doctorId: doctorId,
-                    doctorName: doctorName,
-                    password: password
-                })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        showNotification('Registration successful! Please login.', 'success');
-                        document.getElementById('showLogin').click();
-                    } else {
-                        showNotification(data.message || 'Registration failed', 'danger');
-                    }
-                })
-                .catch(error => {
-                    console.error('Register error:', error);
-                    showNotification('Network error. Check URL and redeploy script.', 'danger');
-                })
-                .finally(() => {
-                    submitBtn.textContent = originalText;
-                    submitBtn.disabled = false;
-                });
         }
 
-        // Handle logout
         function handleLogout() {
-            localStorage.removeItem('doctorId');
-            localStorage.removeItem('doctorName');
             currentDoctorId = '';
             currentDoctorName = '';
             selectedPatientId = '';
             selectedPatientName = '';
             patients = [];
+            patientData = [];
 
-            showLogin();
-        }
+            // Clear session storage
+            sessionStorage.clear();
 
-        // Show login page
-        function showLogin() {
-            document.getElementById('loginPage').style.display = 'flex';
+            // Reset and show login page
+            document.getElementById('loginForm').reset();
             document.getElementById('dashboardPage').style.display = 'none';
+            document.getElementById('loginPage').style.display = 'flex';
         }
 
-        // Show dashboard
-        function showDashboard() {
-            document.getElementById('loginPage').style.display = 'none';
-            document.getElementById('dashboardPage').style.display = 'block';
+        // Patient Management Functions
+        async function loadPatients() {
+            const loading = await showLoading();
 
-            document.getElementById('doctorName').textContent = currentDoctorName;
-            document.getElementById('settingsDoctorName').value = currentDoctorName;
-
-            loadPatients();
-            showPage('patients');
-        }
-
-        // Show a specific page
-        function showPage(pageName) {
-            document.querySelectorAll('.page-content').forEach(page => {
-                page.style.display = 'none';
-            });
-
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.classList.remove('active');
-            });
-
-            const pageId = pageName === 'dashboard' ? 'dashboardPageContent' : `${pageName}Page`;
-            document.getElementById(pageId).style.display = 'block';
-            document.querySelector(`.nav-item[data-page="${pageName}"]`).classList.add('active');
-        }
-
-        // Load patients for the current doctor
-        function loadPatients() {
-            if (!currentDoctorId) return;
-
-            document.getElementById('patientsList').innerHTML = '<div class="spinner"></div>';
-
-            fetch(`${scriptUrl}?action=getPatients&doctorId=${encodeURIComponent(currentDoctorId)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        patients = data.patients;
-                        renderPatientsList();
-                    } else {
-                        showNotification(data.message || 'Failed to load patients', 'danger');
-                    }
-                })
-                .catch(error => {
-                    showNotification('Error connecting to server', 'danger');
-                    console.error('Load patients error:', error);
+            try {
+                const result = await apiCall('', 'GET', {
+                    action: 'getPatients',
+                    doctorId: currentDoctorId
                 });
-        }
 
-        // Render patients list
-        function renderPatientsList() {
-            const patientsListEl = document.getElementById('patientsList');
-
-            if (patients.length === 0) {
-                patientsListEl.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><h4>No Patients Yet</h4><p>Add your first patient to start tracking their rehabilitation progress.</p></div>`;
-                return;
-            }
-
-            let html = '<div class="row">';
-            patients.forEach(patient => {
-                html += `
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card patient-card" data-patient-id="${patient.patientId}">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center">
-                                    <div class="patient-avatar">${patient.name.charAt(0).toUpperCase()}</div>
-                                    <div>
-                                        <h5 class="mb-1">${patient.name}</h5>
-                                        <p class="text-muted mb-0">${patient.condition} • Age: ${patient.age}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-
-            patientsListEl.innerHTML = html;
-
-            document.querySelectorAll('.patient-card').forEach(card => {
-                card.addEventListener('click', function () {
-                    const patientId = this.getAttribute('data-patient-id');
-                    selectPatient(patientId);
-                });
-            });
-        }
-
-        // Select a patient
-        function selectPatient(patientId) {
-            const patient = patients.find(p => p.patientId === patientId);
-            if (!patient) return;
-
-            selectedPatientId = patientId;
-            selectedPatientName = patient.name;
-
-            document.getElementById('selectedPatientName').textContent = patient.name;
-            document.getElementById('selectedPatientDetails').textContent = `Patient ID: ${patientId} • ${patient.condition} • Age: ${patient.age}`;
-
-            document.querySelectorAll('.patient-card').forEach(card => card.classList.remove('selected'));
-            document.querySelector(`.patient-card[data-patient-id="${patientId}"]`).classList.add('selected');
-
-            showPage('dashboard');
-            loadPatientData(patientId);
-
-            if (!window.realtimeChart) {
-                initializeCharts();
+                patients = result.patients;
+                renderPatientsList();
+            } catch (error) {
+                console.error('Error loading patients:', error);
+            } finally {
+                hideLoading(loading);
             }
         }
 
-        // Load patient data
-        function loadPatientData(patientId) {
-            if (!patientId) return;
+        async function addNewPatient(event) {
+            event.preventDefault();
+            const loading = await showLoading();
 
-            fetch(`${scriptUrl}?action=getPatientData&patientId=${encodeURIComponent(patientId)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        patientData = data.lastSevenDays;
+            try {
+                const patientName = document.getElementById('newPatientName').value;
+                const patientAge = document.getElementById('newPatientAge').value;
+                const patientCondition = document.getElementById('newPatientCondition').value;
 
-                        updateDashboardWithPatientData(data.latestRecord, data.lastSevenDays);
-                        updateCharts(data.latestRecord, data.lastSevenDays);
-                        updateDataTable(data.lastSevenDays);
-
-                        if (data.latestRecord && data.latestRecord.jointAngle) {
-                            updateJointAngles(data.latestRecord.jointAngle);
-                        }
-                    } else {
-                        showNotification(data.message || 'Failed to load patient data', 'danger');
-                    }
-                })
-                .catch(error => {
-                    showNotification('Error connecting to server', 'danger');
-                    console.error('Load patient data error:', error);
-                });
-        }
-
-        // Update dashboard with patient data
-        function updateDashboardWithPatientData(latestRecord, lastSevenDays) {
-            if (latestRecord) {
-                document.getElementById('pulseValue').textContent = latestRecord.pulse || '--';
-                document.getElementById('movementValue').textContent = (latestRecord.movementMagnitude || 0).toFixed(1);
-                document.getElementById('sleepValue').textContent = latestRecord.sleepQualityScore || '--';
-
-                document.getElementById('anomalyAlert').style.display = latestRecord.isPulseAnomaly ? 'flex' : 'none';
-            }
-        }
-
-        // Update joint angles visualization
-        function updateJointAngles(jointAngles) {
-            if (!jointAngles) return;
-
-            document.querySelectorAll('.joint-item').forEach(item => {
-                const jointName = item.querySelector('.joint-name').textContent.toLowerCase();
-                const jointValue = jointAngles[jointName];
-
-                if (jointValue !== undefined) {
-                    item.querySelector('.joint-value').textContent = jointValue + '°';
-                    item.querySelector('.joint-circle').style.setProperty('--angle', jointValue + 'deg');
-                }
-            });
-        }
-
-        // Handle adding a new patient
-        function handleAddPatient() {
-            const name = document.getElementById('patientName').value.trim();
-            const age = document.getElementById('patientAge').value;
-            const condition = document.getElementById('patientCondition').value;
-
-            if (!name || !age || !condition) {
-                showNotification('Please fill in all fields', 'warning');
-                return;
-            }
-
-            const submitBtn = document.getElementById('savePatientBtn');
-            const originalText = submitBtn.textContent;
-            submitBtn.textContent = 'Saving...';
-            submitBtn.disabled = true;
-
-            fetch(scriptUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+                await apiCall('', 'POST', {
                     action: 'addPatient',
                     doctorId: currentDoctorId,
-                    patientName: name,
-                    patientAge: age,
-                    patientCondition: condition
-                })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        loadPatients();
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('addPatientModal'));
-                        modal.hide();
-                        // Clear form
-                        document.getElementById('addPatientForm').reset();
-                        showNotification('Patient added successfully', 'success');
-                    } else {
-                        showNotification(data.message || 'Failed to add patient', 'danger');
-                    }
-                })
-                .catch(error => {
-                    showNotification('Error: ' + error.message, 'danger');
-                })
-                .finally(() => {
-                    submitBtn.textContent = originalText;
-                    submitBtn.disabled = false;
+                    patientName,
+                    patientAge,
+                    patientCondition
                 });
+
+                // Close modal and reload patients
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addPatientModal'));
+                modal.hide();
+                await loadPatients();
+                showNotification('Patient added successfully!');
+            } catch (error) {
+                console.error('Error adding patient:', error);
+            } finally {
+                hideLoading(loading);
+            }
         }
 
-        function simulateData() {
-            if (!selectedPatientId) {
-                showNotification('Please select a patient first', 'warning');
-                return;
+        async function loadPatientData(patientId) {
+            const loading = await showLoading();
+
+            try {
+                const result = await apiCall('', 'GET', {
+                    action: 'getPatientData',
+                    patientId
+                });
+
+                patientData = result;
+                renderPatientData();
+            } catch (error) {
+                console.error('Error loading patient data:', error);
+            } finally {
+                hideLoading(loading);
+            }
+        }
+
+        // UI Functions
+        function toggleForms() {
+            const registrationForm = document.getElementById('registrationForm');
+            const loginForm = document.getElementById('loginForm');
+            const showRegisterLink = document.getElementById('showRegister');
+            const showLoginLink = document.getElementById('showLogin');
+
+            if (registrationForm.style.display === 'none') {
+                registrationForm.style.display = 'block';
+                loginForm.style.display = 'none';
+                showRegisterLink.parentElement.style.display = 'none';
+            } else {
+                registrationForm.style.display = 'none';
+                loginForm.style.display = 'block';
+                showRegisterLink.parentElement.style.display = 'block';
+            }
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check for existing session
+            const savedDoctorId = sessionStorage.getItem('currentDoctorId');
+            const savedDoctorName = sessionStorage.getItem('currentDoctorName');
+
+            if (savedDoctorId && savedDoctorName) {
+                currentDoctorId = savedDoctorId;
+                currentDoctorName = savedDoctorName;
+                document.getElementById('doctorName').textContent = currentDoctorName;
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('dashboardPage').style.display = 'block';
+                loadPatients();
             }
 
-            // Generate random data
-            const now = new Date().toISOString();
-            const randomPulse = Math.floor(Math.random() * (100 - 60 + 1)) + 60;
-            const randomMovement = Math.random() * 10;
-            const randomSleep = Math.floor(Math.random() * (100 - 50 + 1)) + 50;
-            const randomJoint = {
-                knee: Math.floor(Math.random() * (180 - 0 + 1)) + 0,
-                elbow: Math.floor(Math.random() * (180 - 0 + 1)) + 0,
-                shoulder: Math.floor(Math.random() * (180 - 0 + 1)) + 0,
-                hip: Math.floor(Math.random() * (180 - 0 + 1)) + 0
-            };
+            // Attach event listeners
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            document.getElementById('registerForm').addEventListener('submit', handleRegister);
+            document.getElementById('showRegister').addEventListener('click', toggleForms);
+            document.getElementById('showLogin').addEventListener('click', toggleForms);
+            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+            document.getElementById('addPatientForm').addEventListener('submit', addNewPatient);
 
-            fetch(scriptUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'submitData',
-                    timestamp: now,
-                    patientId: selectedPatientId,
-                    pulse: randomPulse,
-                    movementMagnitude: randomMovement,
-                    sleepQualityScore: randomSleep,
-                    jointAngle: randomJoint
-                })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        showNotification('Simulated data added', 'success');
-                        loadPatientData(selectedPatientId);
-                    } else {
-                        showNotification(data.message || 'Simulation failed', 'danger');
-                    }
-                })
-                .catch(error => {
-                    showNotification('Error: ' + error.message, 'danger');
-                });
-        }
-
-        function showNotification(message, type = 'info') {
-            const notificationContainer = document.getElementById('notificationContainer');
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type} alert-dismissible fade show`;
-            notification.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-            notificationContainer.appendChild(notification);
-
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => notification.remove(), 150);
-            }, 5000);
-        }
-
-        function filterPatients(e) {
-            const searchTerm = e.target.value.toLowerCase();
-            const filteredPatients = patients.filter(p => p.name.toLowerCase().includes(searchTerm));
-
-            const patientsListEl = document.getElementById('patientsList');
-            if (filteredPatients.length === 0) {
-                patientsListEl.innerHTML = `<div class="empty-state"><i class="fas fa-search"></i><h4>No patients found</h4><p>Try a different search term.</p></div>`;
-                return;
-            }
-
-            let html = '<div class="row">';
-            filteredPatients.forEach(patient => {
-                html += `
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card patient-card" data-patient-id="${patient.patientId}">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center">
-                                    <div class="patient-avatar">${patient.name.charAt(0).toUpperCase()}</div>
-                                    <div>
-                                        <h5 class="mb-1">${patient.name}</h5>
-                                        <p class="text-muted mb-0">${patient.condition} • Age: ${patient.age}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            patientsListEl.innerHTML = html;
-
-            document.querySelectorAll('.patient-card').forEach(card => {
-                card.addEventListener('click', function () {
-                    const patientId = this.getAttribute('data-patient-id');
-                    selectPatient(patientId);
+            // Navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const page = this.dataset.page;
+                    document.querySelectorAll('.page-content').forEach(p => 
+                        p.style.display = 'none'
+                    );
+                    document.getElementById(page + 'Page').style.display = 'block';
+                    document.querySelectorAll('.nav-item').forEach(n => 
+                        n.classList.remove('active')
+                    );
+                    this.classList.add('active');
                 });
             });
-        }
+        });
 
-        function exportReport() {
-            if (!selectedPatientId) {
-                showNotification('Please select a patient to export a report.', 'warning');
-                return;
-            }
-            showNotification(`Exporting report for ${selectedPatientName}...`, 'info');
-        }
-
-        // --- CHARTS ---
-        function initializeCharts() {
-            const defaultChartOptions = {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { beginAtZero: true }
-                }
-            };
-
-            window.realtimeChart = new Chart(document.getElementById('realtimeChart'), {
-                type: 'line',
-                data: { labels: [], datasets: [{ data: [], borderColor: 'var(--primary-color)', tension: 0.4 }] },
-                options: defaultChartOptions
-            });
-            window.movementChart = new Chart(document.getElementById('movementChart'), {
-                type: 'bar',
-                data: { labels: [], datasets: [{ data: [], backgroundColor: 'var(--info-color)' }] },
-                options: defaultChartOptions
-            });
-            window.progressChart = new Chart(document.getElementById('progressChart'), {
-                type: 'doughnut',
-                data: { datasets: [{ data: [68, 32], backgroundColor: ['var(--primary-color)', '#e9ecef'], borderWidth: 0 }] },
-                options: { responsive: true, maintainAspectRatio: false, cutout: '80%', plugins: { legend: { display: false } } }
-            });
-            window.pulseDetailChart = new Chart(document.getElementById('pulseDetailChart'), {
-                type: 'line',
-                data: { labels: [], datasets: [{ data: [], borderColor: 'var(--success-color)', tension: 0.4 }] },
-                options: defaultChartOptions
-            });
-            window.movementDetailChart = new Chart(document.getElementById('movementDetailChart'), {
-                type: 'line',
-                data: { labels: [], datasets: [{ data: [], borderColor: 'var(--info-color)', tension: 0.4 }] },
-                options: defaultChartOptions
-            });
-            window.sleepDetailChart = new Chart(document.getElementById('sleepDetailChart'), {
-                type: 'bar',
-                data: { labels: [], datasets: [{ data: [], backgroundColor: 'var(--warning-color)' }] },
-                options: defaultChartOptions
-            });
-            window.jointAnglesChart = new Chart(document.getElementById('jointAnglesChart'), {
-                type: 'radar',
-                data: { labels: ['Knee', 'Elbow', 'Shoulder', 'Hip'], datasets: [{ data: [], backgroundColor: 'rgba(13, 110, 253, 0.2)', borderColor: 'var(--primary-color)', pointBackgroundColor: 'var(--primary-color)' }] },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
-        function updateCharts(latestRecord, lastSevenDays) {
-            updateRealtimeChart('Pulse');
-
-            const last7DaysLabels = lastSevenDays.map(d => new Date(d.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })).reverse();
-
-            window.movementChart.data.labels = last7DaysLabels;
-            window.movementChart.data.datasets[0].data = lastSevenDays.map(d => d.movementMagnitude).reverse();
-            window.movementChart.update();
-
-            const allLabels = patientData.map(d => new Date(d.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })).reverse();
-
-            window.pulseDetailChart.data.labels = allLabels;
-            window.pulseDetailChart.data.datasets[0].data = patientData.map(d => d.pulse).reverse();
-            window.pulseDetailChart.update();
-
-            window.movementDetailChart.data.labels = allLabels;
-            window.movementDetailChart.data.datasets[0].data = patientData.map(d => d.movementMagnitude).reverse();
-            window.movementDetailChart.update();
-
-            window.sleepDetailChart.data.labels = allLabels;
-            window.sleepDetailChart.data.datasets[0].data = patientData.map(d => d.sleepQualityScore).reverse();
-            window.sleepDetailChart.update();
-
-            if (latestRecord && latestRecord.jointAngle) {
-                window.jointAnglesChart.data.datasets[0].data = [
-                    latestRecord.jointAngle.knee || 0,
-                    latestRecord.jointAngle.elbow || 0,
-                    latestRecord.jointAngle.shoulder || 0,
-                    latestRecord.jointAngle.hip || 0
-                ];
-                window.jointAnglesChart.update();
-            }
-        }
-
-        function updateRealtimeChart(metric) {
-            const todayData = patientData.filter(d => new Date(d.timestamp).toDateString() === new Date().toDateString());
-            let data, color;
-            switch (metric) {
-                case 'Movement':
-                    data = todayData.map(d => d.movementMagnitude);
-                    color = 'var(--info-color)';
-                    break;
-                case 'Sleep':
-                    data = todayData.map(d => d.sleepQualityScore);
-                    color = 'var(--warning-color)';
-                    break;
-                default: // Pulse
-                    data = todayData.map(d => d.pulse);
-                    color = 'var(--primary-color)';
-            }
-            window.realtimeChart.data.labels = todayData.map((d, i) => `T-${todayData.length - i}`).reverse();
-            window.realtimeChart.data.datasets[0].data = data.reverse();
-            window.realtimeChart.data.datasets[0].borderColor = color;
-            window.realtimeChart.update();
-        }
-
-        function updateDataTable(lastSevenDays) {
-            const tableBody = document.getElementById('dataTableBody');
-            let html = '';
-            lastSevenDays.forEach(day => {
-                const avgPulse = (lastSevenDays.reduce((a, b) => a + (b.pulse || 0), 0) / lastSevenDays.length).toFixed(1);
-                const avgMovement = (lastSevenDays.reduce((a, b) => a + (b.movementMagnitude || 0), 0) / lastSevenDays.length).toFixed(1);
-                html += `
-                    <tr>
-                        <td>${new Date(day.timestamp).toLocaleDateString()}</td>
-                        <td>${day.pulse || '--'}</td>
-                        <td>${avgPulse}</td>
-                        <td>${(day.movementMagnitude || 0).toFixed(1)}</td>
-                        <td>${avgMovement}</td>
-                        <td>${day.sleepQualityScore || '--'}</td>
-                        <td><span class="badge ${day.isPulseAnomaly ? 'badge-danger' : 'badge-success'}">${day.isPulseAnomaly ? 'Anomaly' : 'Normal'}</span></td>
-                    </tr>
-                `;
-            });
-            tableBody.innerHTML = html;
-        }
     </script>
 </body>
 
