@@ -785,26 +785,26 @@
                                 <div class="card-body">
                                     <div class="joint-visualization">
                                         <div class="joint-item">
-                                            <div class="joint-circle" style="--angle: 95deg;">
-                                                <div class="joint-value">95°</div>
+                                            <div id="kneeAngleCircle" class="joint-circle" style="--angle: 0deg;">
+                                                <div id="kneeAngleValue" class="joint-value">0°</div>
                                             </div>
                                             <div class="joint-name">Knee</div>
                                         </div>
                                         <div class="joint-item">
-                                            <div class="joint-circle" style="--angle: 120deg;">
-                                                <div class="joint-value">120°</div>
+                                            <div id="elbowAngleCircle" class="joint-circle" style="--angle: 0deg;">
+                                                <div id="elbowAngleValue" class="joint-value">0°</div>
                                             </div>
                                             <div class="joint-name">Elbow</div>
                                         </div>
                                         <div class="joint-item">
-                                            <div class="joint-circle" style="--angle: 75deg;">
-                                                <div class="joint-value">75°</div>
+                                            <div id="shoulderAngleCircle" class="joint-circle" style="--angle: 0deg;">
+                                                <div id="shoulderAngleValue" class="joint-value">0°</div>
                                             </div>
                                             <div class="joint-name">Shoulder</div>
                                         </div>
                                         <div class="joint-item">
-                                            <div class="joint-circle" style="--angle: 110deg;">
-                                                <div class="joint-value">110°</div>
+                                            <div id="hipAngleCircle" class="joint-circle" style="--angle: 0deg;">
+                                                <div id="hipAngleValue" class="joint-value">0°</div>
                                             </div>
                                             <div class="joint-name">Hip</div>
                                         </div>
@@ -1384,6 +1384,25 @@
                     tableBody.appendChild(tr);
                 });
             }
+
+            // Update joint angle circles (default to 0 if missing)
+            const ja = (latest && latest.jointAngle) ? latest.jointAngle : {};
+            const jointValues = {
+                knee: ja.knee ?? 0,
+                elbow: ja.elbow ?? 0,
+                shoulder: ja.shoulder ?? 0,
+                hip: ja.hip ?? 0
+            };
+            const setJoint = (idBase, value) => {
+                const circle = document.getElementById(idBase + 'AngleCircle');
+                const label = document.getElementById(idBase + 'AngleValue');
+                if (circle) circle.style.setProperty('--angle', Math.max(0, Number(value) || 0) + 'deg');
+                if (label) label.textContent = (Number(value) || 0) + '°';
+            };
+            setJoint('knee', jointValues.knee);
+            setJoint('elbow', jointValues.elbow);
+            setJoint('shoulder', jointValues.shoulder);
+            setJoint('hip', jointValues.hip);
 
             updateCharts(latest || null, last7);
         }
