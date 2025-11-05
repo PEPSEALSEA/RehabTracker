@@ -594,56 +594,24 @@
 </head>
 
 <body>
-    <!-- Login Page -->
-    <div id="loginPage" class="login-container">
+    <!-- Search Patient Page -->
+    <div id="searchPage" class="login-container">
         <div class="login-card">
             <div class="login-logo">
                 <i class="fas fa-heartbeat"></i>
                 <h2>RehabTracker</h2>
             </div>
 
-            <form id="loginForm">
+            <form id="searchForm">
                 <div class="mb-3">
-                    <label for="doctorId" class="form-label">Doctor ID</label>
-                    <input type="text" class="form-control" id="doctorId" required>
+                    <label for="patientId" class="form-label">Patient ID</label>
+                    <input type="text" class="form-control" id="patientId" required placeholder="Enter patient ID">
                 </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="password" required>
-                </div>
-                <button type="submit" class="btn btn-primary w-100">Login</button>
+                <button type="submit" class="btn btn-primary w-100">Search Patient</button>
             </form>
 
-            <div class="text-center mt-3">
-                <p>Don't have an account? <a href="#" id="showRegister">Register</a></p>
-            </div>
-
-            <!-- Registration Form (Hidden Initially) -->
-                        <!-- Registration Form (Hidden Initially) -->
-            <div id="registrationForm" style="display: none;">
-                <h4 class="text-center mb-4">Doctor Registration</h4>
-                <form id="registerForm">
-                    <div class="mb-3">
-                        <label for="registerDoctorId" class="form-label">Doctor ID</label>
-                        <input type="text" class="form-control" id="registerDoctorId" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="registerName" class="form-label">Full Name</label>
-                        <input type="text" class="form-control" id="registerName" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="registerPassword" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="registerPassword" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="confirmPassword" class="form-label">Confirm Password</label>
-                        <input type="password" class="form-control" id="confirmPassword" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Register</button>
-                </form>
-                <div class="text-center mt-3">
-                    <p>Already have an account? <a href="#" id="showLogin">Login</a></p>
-                </div>
+            <div id="searchError" class="alert alert-danger mt-3" style="display: none;">
+                Patient not found. Please check the ID and try again.
             </div>
         </div>
     </div>
@@ -660,12 +628,8 @@
                 <span>RehabTracker</span>
             </div>
             <div class="user-info">
-                <span class="me-3" id="doctorName"></span>
-                <div class="user-avatar">
-                    <i class="fas fa-user"></i>
-                </div>
-                <button class="btn btn-outline-primary ms-3" id="logoutBtn">
-                    <i class="fas fa-sign-out-alt"></i>
+                <button class="btn btn-outline-primary ms-3" id="backToSearchBtn" title="Back to Search">
+                    <i class="fas fa-arrow-left"></i>
                 </button>
             </div>
             <button class="btn btn-outline-primary mobile-menu-toggle">
@@ -696,7 +660,7 @@
         <!-- Main Content -->
         <main class="main-content">
             <!-- Patients Page -->
-            <div id="patientsPage" class="page-content">
+            <div id="patientsPage" class="page-content" style="display: none;">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h1 class="page-title">My Patients</h1>
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPatientModal">
@@ -737,8 +701,7 @@
                     </div>
                     <div class="patient-details">
                         <h3 id="selectedPatientName">Select a Patient</h3>
-                        <p id="selectedPatientDetails">Choose a patient from the list to view their rehabilitation
-                            progress</p>
+                        <p id="selectedPatientDetails">Choose a patient from the list to view their rehabilitation progress</p>
                     </div>
                     <div class="ms-auto">
                         <button class="btn btn-primary" id="exportReportBtn">
@@ -1106,12 +1069,11 @@
     <!-- Custom JavaScript -->
     <script>
         let scriptUrl = 'https://script.google.com/macros/s/AKfycbwOIWUdbLHsMl4Bwgh8TiauBvPQKVOy7XEFXy6grauL8V55qaFS0D4xtKoTtXmJCAnmGw/exec';  
-        let currentDoctorId = '';
-        let currentDoctorName = '';
         let selectedPatientId = '';
         let selectedPatientName = '';
-        let patients = [];
         let patientData = [];
+        let currentDoctorId = '';
+        let currentDoctorName = '';
 
         // Utility Functions
         function showNotification(message, type = 'success') {
@@ -1170,88 +1132,13 @@
             }
         }
 
-        // Authentication Functions
-        async function handleLogin(event) {
-            event.preventDefault();
-            const loading = await showLoading();
-
-            try {
-                const doctorId = document.getElementById('doctorId').value;
-                const password = document.getElementById('password').value;
-
-                const result = await apiCall('', 'GET', {
-                    action: 'login',
-                    doctorId,
-                    password
-                });
-
-                currentDoctorId = result.doctorId;
-                currentDoctorName = result.doctorName;
-                document.getElementById('doctorName').textContent = currentDoctorName;
-
-                // Save to session storage
-                sessionStorage.setItem('currentDoctorId', currentDoctorId);
-                sessionStorage.setItem('currentDoctorName', currentDoctorName);
-
-                // Switch to dashboard
-                document.getElementById('loginPage').style.display = 'none';
-                document.getElementById('dashboardPage').style.display = 'block';
-
-                // Load initial data
-                await loadPatients();
-                showNotification('Successfully logged in!');
-            } catch (error) {
-                console.error('Login error:', error);
-            } finally {
-                hideLoading(loading);
-            }
-        }
-
-        async function handleRegister(event) {
-            event.preventDefault();
-            const loading = await showLoading();
-
-            try {
-                const doctorId = document.getElementById('registerDoctorId').value;
-                const doctorName = document.getElementById('registerName').value;
-                const password = document.getElementById('registerPassword').value;
-                const confirmPassword = document.getElementById('confirmPassword').value;
-
-                if (password !== confirmPassword) {
-                    throw new Error('Passwords do not match');
-                }
-
-                await apiCall('', 'POST', {
-                    action: 'register',
-                    doctorId,
-                    doctorName,
-                    password
-                });
-
-                showNotification('Registration successful! Please login.');
-                toggleForms(); // Switch back to login form
-            } catch (error) {
-                console.error('Registration error:', error);
-            } finally {
-                hideLoading(loading);
-            }
-        }
-
-        function handleLogout() {
-            currentDoctorId = '';
-            currentDoctorName = '';
+        // Simple navigation back to search
+        function backToSearch() {
             selectedPatientId = '';
             selectedPatientName = '';
-            patients = [];
             patientData = [];
-
-            // Clear session storage
-            sessionStorage.clear();
-
-            // Reset and show login page
-            document.getElementById('loginForm').reset();
             document.getElementById('dashboardPage').style.display = 'none';
-            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('searchPage').style.display = 'flex';
         }
 
         // Patient Management Functions
@@ -1321,45 +1208,74 @@
         }
 
         // UI Functions
-        function toggleForms() {
-            const registrationForm = document.getElementById('registrationForm');
-            const loginForm = document.getElementById('loginForm');
-            const showRegisterLink = document.getElementById('showRegister');
-            const showLoginLink = document.getElementById('showLogin');
+        function renderPatientData() {
+            const latest = patientData.latestRecord;
+            const last7 = patientData.lastSevenDays || [];
 
-            if (registrationForm.style.display === 'none') {
-                registrationForm.style.display = 'block';
-                loginForm.style.display = 'none';
-                showRegisterLink.parentElement.style.display = 'none';
-            } else {
-                registrationForm.style.display = 'none';
-                loginForm.style.display = 'block';
-                showRegisterLink.parentElement.style.display = 'block';
+            if (latest) {
+                const pulseEl = document.getElementById('pulseValue');
+                const moveEl = document.getElementById('movementValue');
+                const sleepEl = document.getElementById('sleepValue');
+                if (pulseEl) pulseEl.textContent = latest.pulse ?? '--';
+                if (moveEl) moveEl.textContent = latest.movementMagnitude ?? '--';
+                if (sleepEl) sleepEl.textContent = latest.sleepQualityScore ?? '--';
+
+                const alertEl = document.getElementById('anomalyAlert');
+                if (alertEl) alertEl.style.display = latest.isPulseAnomaly ? 'flex' : 'none';
+            }
+
+            const tableBody = document.getElementById('dataTableBody');
+            if (tableBody) {
+                tableBody.innerHTML = '';
+                last7.forEach(r => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${r.timestamp || ''}</td>
+                        <td>${r.pulse ?? ''}</td>
+                        <td>${r.pulseMA ?? ''}</td>
+                        <td>${r.movementMagnitude ?? ''}</td>
+                        <td>${r.movementMA ?? ''}</td>
+                        <td>${r.sleepQualityScore ?? ''}</td>
+                        <td>
+                            <span class="badge ${r.isPulseAnomaly ? 'badge-danger' : 'badge-success'}">
+                                ${r.isPulseAnomaly ? 'Anomaly' : 'Normal'}
+                            </span>
+                        </td>`;
+                    tableBody.appendChild(tr);
+                });
             }
         }
 
         // Event Listeners
         document.addEventListener('DOMContentLoaded', () => {
-            // Check for existing session
-            const savedDoctorId = sessionStorage.getItem('currentDoctorId');
-            const savedDoctorName = sessionStorage.getItem('currentDoctorName');
+            document.getElementById('searchPage').style.display = 'flex';
+            document.getElementById('dashboardPage').style.display = 'none';
 
-            if (savedDoctorId && savedDoctorName) {
-                currentDoctorId = savedDoctorId;
-                currentDoctorName = savedDoctorName;
-                document.getElementById('doctorName').textContent = currentDoctorName;
-                document.getElementById('loginPage').style.display = 'none';
-                document.getElementById('dashboardPage').style.display = 'block';
-                loadPatients();
-            }
+            const searchForm = document.getElementById('searchForm');
+            const searchError = document.getElementById('searchError');
+            searchForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                searchError.style.display = 'none';
+                const pid = document.getElementById('patientId').value.trim();
+                if (!pid) return;
+                try {
+                    selectedPatientId = pid;
+                    selectedPatientName = pid;
+                    await loadPatientData(pid);
+                    const nameEl = document.getElementById('selectedPatientName');
+                    const detailsEl = document.getElementById('selectedPatientDetails');
+                    if (nameEl) nameEl.textContent = `Patient ${selectedPatientName}`;
+                    if (detailsEl) detailsEl.textContent = `Viewing data for ${selectedPatientName}`;
+                    document.getElementById('searchPage').style.display = 'none';
+                    document.getElementById('dashboardPage').style.display = 'block';
+                    document.getElementById('dashboardPageContent').style.display = 'block';
+                } catch (err) {
+                    searchError.style.display = 'block';
+                }
+            });
 
-            // Attach event listeners
-            document.getElementById('loginForm').addEventListener('submit', handleLogin);
-            document.getElementById('registerForm').addEventListener('submit', handleRegister);
-            document.getElementById('showRegister').addEventListener('click', toggleForms);
-            document.getElementById('showLogin').addEventListener('click', toggleForms);
-            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-            document.getElementById('addPatientForm').addEventListener('submit', addNewPatient);
+            const backBtn = document.getElementById('backToSearchBtn');
+            if (backBtn) backBtn.addEventListener('click', backToSearch);
 
             // Navigation
             document.querySelectorAll('.nav-item').forEach(item => {
@@ -1368,7 +1284,8 @@
                     document.querySelectorAll('.page-content').forEach(p => 
                         p.style.display = 'none'
                     );
-                    document.getElementById(page + 'Page').style.display = 'block';
+                    const pageEl = document.getElementById(page + 'Page');
+                    if (pageEl) pageEl.style.display = 'block';
                     document.querySelectorAll('.nav-item').forEach(n => 
                         n.classList.remove('active')
                     );
