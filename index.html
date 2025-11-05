@@ -1248,6 +1248,71 @@
         // Handle registration
         function handleRegister(e) {
             e.preventDefault();
+            const form = document.getElementById('registrationForm');
+            const doctorId = form.querySelector('#regDoctorId').value;
+            const doctorName = form.querySelector('#regDoctorName').value;
+            const password = form.querySelector('#regPassword').value;
+            const confirmPassword = form.querySelector('#regConfirmPassword').value;
+
+            // Basic validation
+            if (!doctorId || !doctorName || !password || !confirmPassword) {
+                showNotification('All fields are required', 'error');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showNotification('Passwords do not match', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showNotification('Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            // Show loading state
+            const submitButton = form.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Registering...';
+
+            // Make the registration request
+            fetch(scriptUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'register',
+                    doctorId: doctorId,
+                    doctorName: doctorName,
+                    password: password
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('Registration successful! Please login.', 'success');
+                    toggleForms(); // Switch back to login form
+                } else {
+                    showNotification(data.message || 'Registration failed', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Registration error:', error);
+                showNotification('Registration failed. Please try again.', 'error');
+            })
+            .finally(() => {
+                // Reset button state
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+            });
+            e.preventDefault();
 
             const doctorName = document.getElementById('regDoctorName').value.trim();
             const doctorId = document.getElementById('regDoctorId').value.trim();
