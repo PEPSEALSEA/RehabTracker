@@ -1190,34 +1190,54 @@
         
 
         // API Functions
-        function jsonp(url) {
+        function jsonp(url, attempts = 2, baseTimeoutMs = 8000) {
             return new Promise((resolve, reject) => {
-                const cb = 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-                const script = document.createElement('script');
-                const timeout = setTimeout(() => {
-                    cleanup();
-                    reject(new Error('Request timed out'));
-                }, 10000);
+                let done = false;
+                const tryOnce = (attemptIdx) => {
+                    const cb = 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+                    const script = document.createElement('script');
+                    const timeoutMs = baseTimeoutMs * Math.pow(1.6, attemptIdx);
+                    const timeout = setTimeout(() => {
+                        cleanup();
+                        onFail(new Error('Request timed out'));
+                    }, timeoutMs);
 
-                function cleanup() {
-                    clearTimeout(timeout);
-                    delete window[cb];
-                    if (script && script.parentNode) script.parentNode.removeChild(script);
-                }
+                    function cleanup() {
+                        clearTimeout(timeout);
+                        delete window[cb];
+                        if (script && script.parentNode) script.parentNode.removeChild(script);
+                    }
 
-                window[cb] = (data) => {
-                    cleanup();
-                    resolve(data);
+                    function onFail(err) {
+                        if (done) return;
+                        if (attemptIdx + 1 < attempts) {
+                            setTimeout(() => tryOnce(attemptIdx + 1), 300);
+                        } else {
+                            done = true;
+                            reject(err);
+                        }
+                    }
+
+                    window[cb] = (data) => {
+                        if (done) return;
+                        done = true;
+                        cleanup();
+                        resolve(data);
+                    };
+
+                    try {
+                        url.searchParams.set('callback', cb);
+                        url.searchParams.set('_ts', String(Date.now()));
+                        script.src = url.toString();
+                        script.async = true;
+                        script.onerror = () => { cleanup(); onFail(new Error('Network error')); };
+                        document.body.appendChild(script);
+                    } catch (e) {
+                        cleanup();
+                        onFail(e);
+                    }
                 };
-
-                url.searchParams.set('callback', cb);
-                url.searchParams.set('_ts', String(Date.now()));
-                script.src = url.toString();
-                script.onerror = () => {
-                    cleanup();
-                    reject(new Error('Network error'));
-                };
-                document.body.appendChild(script);
+                tryOnce(0);
             });
         }
 
@@ -1234,7 +1254,8 @@
                 if (result.status === 'error') throw new Error(result.message);
                 return result;
             } catch (error) {
-                showNotification(error.message, 'danger');
+                console.error('API error:', { url: url.toString(), error });
+                showNotification('Backend request failed: ' + (error && error.message ? error.message : 'Unknown error'), 'danger');
                 throw error;
             }
         }
