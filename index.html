@@ -1054,6 +1054,7 @@
         let selectedPatientId = '';
         let selectedPatientName = '';
         let patientData = [];
+        let patients = [];
         let currentDoctorId = '';
         let currentDoctorName = '';
 
@@ -1291,12 +1292,14 @@
                     action: 'getPatients'
                 });
 
-                patients = result.patients;
-                renderPatientsList();
+                patients = result.patients || [];
             } catch (error) {
                 console.error('Error loading patients:', error);
+                showNotification('Unable to load patients. You may be offline or the service is blocked. Showing empty list.', 'warning');
+                patients = [];
             } finally {
                 hideLoading(loading);
+                try { renderPatientsList(); } catch (e) { /* no-op */ }
             }
         }
 
