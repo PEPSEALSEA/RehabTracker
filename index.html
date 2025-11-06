@@ -1098,6 +1098,26 @@
             return currentDoctorId || 'PUBLIC';
         }
 
+        // Local storage fallback for PUBLIC sessions
+        const LOCAL_PATIENTS_KEY = 'rehab_public_patients';
+        const LOCAL_DATA_PREFIX = 'rehab_public_data_';
+
+        function readLocalPatients() {
+            try { return JSON.parse(localStorage.getItem(LOCAL_PATIENTS_KEY) || '[]'); } catch { return []; }
+        }
+
+        function writeLocalPatients(list) {
+            try { localStorage.setItem(LOCAL_PATIENTS_KEY, JSON.stringify(Array.isArray(list) ? list : [])); } catch {}
+        }
+
+        function readLocalPatientData(pid) {
+            try { return JSON.parse(localStorage.getItem(LOCAL_DATA_PREFIX + pid) || 'null'); } catch { return null; }
+        }
+
+        function writeLocalPatientData(pid, data) {
+            try { localStorage.setItem(LOCAL_DATA_PREFIX + pid, JSON.stringify(data || {})); } catch {}
+        }
+
         // API Functions
         function jsonp(url) {
             return new Promise((resolve, reject) => {
@@ -1310,8 +1330,13 @@
                 patients = result.patients || [];
             } catch (error) {
                 console.error('Error loading patients:', error);
-                showNotification('Unable to load patients. You may be offline or the service is blocked. Showing empty list.', 'warning');
-                patients = [];
+                if (getDoctorId() === 'PUBLIC') {
+                    patients = readLocalPatients();
+                    showNotification('Network error. Loaded local public patients.', 'warning');
+                } else {
+                    showNotification('Unable to load patients. You may be offline or the service is blocked. Showing empty list.', 'warning');
+                    patients = [];
+                }
             } finally {
                 hideLoading(loading);
                 try { renderPatientsList(); } catch (e) { /* no-op */ }
@@ -1343,6 +1368,22 @@
                 showNotification('Patient added successfully!');
             } catch (error) {
                 console.error('Error adding patient:', error);
+                if (getDoctorId() === 'PUBLIC') {
+                    const patientName = document.getElementById('patientName').value;
+                    const patientAge = document.getElementById('patientAge').value;
+                    const patientCondition = document.getElementById('patientCondition').value;
+                    const localList = readLocalPatients();
+                    const pid = 'P' + Date.now().toString(36);
+                    localList.push({ name: patientName, age: Number(patientAge), condition: patientCondition, patientId: pid });
+                    writeLocalPatients(localList);
+                    writeLocalPatientData(pid, { latestRecord: null, lastSevenDays: [] });
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addPatientModal'));
+                    if (modal) modal.hide();
+                    document.getElementById('addPatientForm').reset();
+                    patients = localList;
+                    renderPatientsList();
+                    showNotification('Network error. Added patient locally for PUBLIC session.', 'warning');
+                }
             } finally {
                 hideLoading(loading);
             }
@@ -1362,6 +1403,12 @@
                 renderPatientData();
             } catch (error) {
                 console.error('Error loading patient data:', error);
+                if (getDoctorId() === 'PUBLIC') {
+                    const local = readLocalPatientData(patientId) || { latestRecord: null, lastSevenDays: [] };
+                    patientData = local;
+                    renderPatientData();
+                    showNotification('Network error. Showing local data for PUBLIC session.', 'warning');
+                }
             } finally {
                 hideLoading(loading);
             }
@@ -1492,7 +1539,14 @@
                             await loadPatients();
                             showNotification('Patient removed', 'success');
                         } catch (err) {
-                            // error handled globally
+                            if (getDoctorId() === 'PUBLIC') {
+                                const list = readLocalPatients().filter(p => p.patientId !== pid);
+                                writeLocalPatients(list);
+                                localStorage.removeItem(LOCAL_DATA_PREFIX + pid);
+                                patients = list;
+                                renderPatientsList();
+                                showNotification('Network error. Removed patient locally for PUBLIC session.', 'warning');
+                            }
                         } finally {
                             hideLoading(loading);
                         }
