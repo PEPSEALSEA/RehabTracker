@@ -1088,6 +1088,16 @@
             return ((document.cookie || '').trim().length === 0);
         }
 
+        function getDoctorId() {
+            if (isPublicSession()) {
+                currentDoctorId = 'PUBLIC';
+                return 'PUBLIC';
+            }
+            // If you later store a cookie like doctorId=XYZ, parse it here
+            // For now, fallback to PUBLIC when not available
+            return currentDoctorId || 'PUBLIC';
+        }
+
         // API Functions
         function jsonp(url) {
             return new Promise((resolve, reject) => {
@@ -1292,12 +1302,9 @@
             const loading = await showLoading();
 
             try {
-                if (isPublicSession()) {
-                    patients = [];
-                    return;
-                }
                 const result = await apiCall('', 'GET', {
-                    action: 'getPatients'
+                    action: 'getPatients',
+                    doctorId: getDoctorId()
                 });
 
                 patients = result.patients || [];
@@ -1322,6 +1329,7 @@
 
                 await apiCall('', 'POST', {
                     action: 'addPatient',
+                    doctorId: getDoctorId(),
                     patientName,
                     patientAge,
                     patientCondition
@@ -1346,6 +1354,7 @@
             try {
                 const result = await apiCall('', 'GET', {
                     action: 'getPatientData',
+                    doctorId: getDoctorId(),
                     patientId
                 });
 
@@ -1479,7 +1488,7 @@
                         if (!confirm('Remove this patient and associated data?')) return;
                         const loading = await showLoading();
                         try {
-                            await apiCall('', 'POST', { action:'removePatient', patientId: pid });
+                            await apiCall('', 'POST', { action:'removePatient', doctorId: getDoctorId(), patientId: pid });
                             await loadPatients();
                             showNotification('Patient removed', 'success');
                         } catch (err) {
