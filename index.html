@@ -1211,6 +1211,7 @@
                 };
 
                 url.searchParams.set('callback', cb);
+                url.searchParams.set('_ts', String(Date.now()));
                 script.src = url.toString();
                 script.onerror = () => {
                     cleanup();
@@ -1250,6 +1251,9 @@
             sleepDetail: null,
             jointAngles: null
         };
+
+        const PATIENTS_PER_PAGE = 4;
+        let patientsPage = 1;
 
         function ensureCharts() {
             const rtCtx = document.getElementById('realtimeChart');
@@ -1400,7 +1404,13 @@
                     doctorId: getDoctorId()
                 });
 
-                patients = result.patients || [];
+                patients = (result.patients || []).slice().sort((a,b)=>{
+                    const an = (a.name || '').toLowerCase();
+                    const bn = (b.name || '').toLowerCase();
+                    if (an && bn && an !== bn) return an < bn ? -1 : 1;
+                    return String(a.patientId || '').localeCompare(String(b.patientId || ''));
+                });
+                if (patientsPage < 1) patientsPage = 1;
                 if (shouldPrefetch && patients.length) {
                     await prefetchAllPatientData(patients.map(p => p.patientId));
                 }
@@ -1435,7 +1445,8 @@
                 const modal = bootstrap.Modal.getInstance(document.getElementById('addPatientModal'));
                 modal.hide();
                 document.getElementById('addPatientForm').reset();
-                await loadPatients();
+                patientsPage = 1;
+                await loadPatients({ blocking: true, prefetch: true });
                 showNotification('Patient added successfully!');
             } catch (error) {
                 console.error('Error adding patient:', error);
@@ -1544,7 +1555,7 @@
         function renderPatientsList() {
             const list = document.getElementById('patientsList');
             const search = document.getElementById('patientSearch');
-            const items = (patients || []).filter(p => {
+            const all = (patients || []).filter(p => {
                 if (!search || !search.value) return true;
                 const q = search.value.toLowerCase();
                 return (
@@ -1554,18 +1565,25 @@
                 );
             });
 
-            if (!items.length) {
+            const total = all.length;
+            const maxPage = Math.max(1, Math.ceil(total / PATIENTS_PER_PAGE));
+            if (patientsPage > maxPage) patientsPage = maxPage;
+            const startIdx = (patientsPage - 1) * PATIENTS_PER_PAGE;
+            const pageItems = all.slice(startIdx, startIdx + PATIENTS_PER_PAGE);
+
+            if (!pageItems.length) {
                 list.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-users"></i>
                         <h4>No Patients Yet</h4>
                         <p>Add your first patient to start tracking their rehabilitation progress.</p>
                     </div>`;
+                renderPatientsPagination(0, 0);
                 return;
             }
 
             list.innerHTML = '';
-            items.forEach(p => {
+            pageItems.forEach(p => {
                 const card = document.createElement('div');
                 card.className = 'card patient-card mb-2';
                 card.innerHTML = `
@@ -1585,6 +1603,8 @@
                 list.appendChild(card);
             });
 
+            renderPatientsPagination(patientsPage, maxPage);
+
             list.querySelectorAll('button[data-action]')
                 .forEach(btn => btn.addEventListener('click', async (e) => {
                     const action = e.currentTarget.dataset.action;
@@ -1598,6 +1618,7 @@
                         if (detailsEl) detailsEl.textContent = `Viewing data for ${selectedPatientName}`;
                         document.getElementById('dashboardPageContent').style.display = 'block';
                         await loadPatientData(pid);
+                        updateHashState();
                     } else if (action === 'remove') {
                         if (!confirm('Remove this patient and associated data?')) return;
                         const loading = await showLoading('Removing…');
@@ -1669,7 +1690,7 @@
                 addNewPatient(e);
             });
             const searchInput = document.getElementById('patientSearch');
-            if (searchInput) searchInput.addEventListener('input', renderPatientsList);
+            if (searchInput) searchInput.addEventListener('input', () => { patientsPage = 1; renderPatientsList(); updateHashState(); });
 
             // Navigation
             document.querySelectorAll('#sidebar .nav-item').forEach(item => {
@@ -1708,7 +1729,68 @@
                     updateCharts(latest, last7);
                 });
             });
+            // Restore state from URL hash
+            restoreHashState();
         });
+
+        function renderPatientsPagination(page, maxPage) {
+            let pager = document.getElementById('patientsPager');
+            if (!pager) {
+                pager = document.createElement('div');
+                pager.id = 'patientsPager';
+                pager.className = 'd-flex justify-content-center mt-3';
+                const container = document.querySelector('#patientsPage .card .card-body');
+                if (container) container.appendChild(pager);
+            }
+            if (maxPage <= 1) { pager.innerHTML = ''; return; }
+            const btn = (label, target, disabled, active=false) => `
+                <button class="btn btn-sm ${active ? 'btn-primary' : 'btn-outline-primary'} mx-1" data-page="${target}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+            let html = '';
+            html += btn('«', 1, page===1);
+            html += btn('‹', Math.max(1, page-1), page===1);
+            for (let p=Math.max(1,page-2); p<=Math.min(maxPage,page+2); p++) {
+                html += btn(String(p), p, false, p===page);
+            }
+            html += btn('›', Math.min(maxPage, page+1), page===maxPage);
+            html += btn('»', maxPage, page===maxPage);
+            pager.innerHTML = html;
+            pager.querySelectorAll('button[data-page]').forEach(b => b.addEventListener('click', (e)=>{
+                const target = parseInt(e.currentTarget.getAttribute('data-page'),10) || 1;
+                patientsPage = target;
+                renderPatientsList();
+                updateHashState();
+            }));
+        }
+
+        function updateHashState() {
+            const parts = [];
+            if (patientsPage && patientsPage > 1) parts.push('page=' + patientsPage);
+            if (selectedPatientId) parts.push('patient=' + encodeURIComponent(selectedPatientId));
+            const hash = parts.join('&');
+            if (hash) location.hash = '#' + hash; else history.replaceState('', document.title, window.location.pathname + window.location.search);
+        }
+
+        function restoreHashState() {
+            const h = (location.hash || '').replace(/^#/,'');
+            if (!h) return;
+            const params = new URLSearchParams(h);
+            const pageStr = params.get('page');
+            const pid = params.get('patient');
+            if (pageStr) {
+                const p = parseInt(pageStr,10);
+                if (!isNaN(p) && p > 0) patientsPage = p;
+            }
+            if (pid) {
+                selectedPatientId = pid;
+                selectedPatientName = pid;
+                const nameEl = document.getElementById('selectedPatientName');
+                const detailsEl = document.getElementById('selectedPatientDetails');
+                if (nameEl) nameEl.textContent = `Patient ${selectedPatientName}`;
+                if (detailsEl) detailsEl.textContent = `Viewing data for ${selectedPatientName}`;
+                document.getElementById('dashboardPageContent').style.display = 'block';
+                loadPatientData(pid).catch(()=>{});
+            }
+        }
 
     </script>
     <script>
