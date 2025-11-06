@@ -630,6 +630,22 @@
             cursor: pointer;
             z-index: 1000;
         }
+
+        .update-status {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 1100;
+            display: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .update-status.info { background: rgba(13, 110, 253, 0.1); color: #0d6efd; }
+        .update-status.success { background: rgba(25, 135, 84, 0.1); color: #198754; }
+        .update-status.danger { background: rgba(220, 53, 69, 0.1); color: #dc3545; }
     </style>
 </head>
 
@@ -639,6 +655,7 @@
 
     <!-- Notification Container -->
     <div id="notificationContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+    <div id="updateStatus" class="update-status info">Updating…</div>
 
     <!-- Main Dashboard (Hidden Initially) -->
     <div id="dashboardPage" style="display: block;">
@@ -696,6 +713,9 @@
                             <input type="text" class="form-control" placeholder="Search patients..." id="patientSearch">
                             <button class="btn btn-outline-secondary" type="button">
                                 <i class="fas fa-search"></i>
+                            </button>
+                            <button class="btn btn-outline-primary" type="button" id="refreshPatientsBtn" title="Refresh patients and data">
+                                <i class="fas fa-rotate"></i>
                             </button>
                         </div>
                     </div>
@@ -1366,8 +1386,10 @@
         }
 
         // Patient Management Functions
-        async function loadPatients() {
-            const loading = await showLoading();
+        async function loadPatients(opts = { blocking: true, prefetch: true }) {
+            const useBlocking = !!opts.blocking;
+            const shouldPrefetch = opts.prefetch !== false;
+            const loading = useBlocking ? await showLoading('Loading patients…') : null;
 
             try {
                 const result = await apiCall('', 'GET', {
@@ -1376,12 +1398,15 @@
                 });
 
                 patients = result.patients || [];
+                if (shouldPrefetch && patients.length) {
+                    await prefetchAllPatientData(patients.map(p => p.patientId));
+                }
             } catch (error) {
                 console.error('Error loading patients:', error);
                 showNotification('Unable to load patients. Network error.', 'danger');
                 patients = [];
             } finally {
-                hideLoading(loading);
+                if (useBlocking) hideLoading();
                 try { renderPatientsList(); } catch (e) { /* no-op */ }
             }
         }
@@ -1417,16 +1442,30 @@
             }
         }
 
+        let patientDataCache = {};
+
+        async function prefetchAllPatientData(ids) {
+            const unique = Array.from(new Set(ids.filter(Boolean)));
+            const tasks = unique.map(async (pid) => {
+                try {
+                    const res = await apiCall('', 'GET', { action: 'getPatientData', doctorId: getDoctorId(), patientId: pid });
+                    patientDataCache[pid] = res;
+                } catch {}
+            });
+            await Promise.all(tasks);
+        }
+
         async function loadPatientData(patientId) {
-            const loading = await showLoading();
+            const loading = await showLoading('Loading data…');
 
             try {
-                const result = await apiCall('', 'GET', {
-                    action: 'getPatientData',
-                    doctorId: getDoctorId(),
-                    patientId
-                });
-
+                if (patientDataCache[patientId]) {
+                    patientData = patientDataCache[patientId];
+                    renderPatientData();
+                    return;
+                }
+                const result = await apiCall('', 'GET', { action: 'getPatientData', doctorId: getDoctorId(), patientId });
+                patientDataCache[patientId] = result;
                 patientData = result;
                 renderPatientData();
             } catch (error) {
@@ -1435,7 +1474,7 @@
                 patientData = { latestRecord: null, lastSevenDays: [] };
                 renderPatientData();
             } finally {
-                hideLoading(loading);
+                hideLoading();
             }
         }
 
@@ -1558,15 +1597,15 @@
                         await loadPatientData(pid);
                     } else if (action === 'remove') {
                         if (!confirm('Remove this patient and associated data?')) return;
-                        const loading = await showLoading();
+                        const loading = await showLoading('Removing…');
                         try {
                             await apiCall('', 'POST', { action:'removePatient', doctorId: getDoctorId(), patientId: pid });
-                            await loadPatients();
+                            await loadPatients({ blocking: false, prefetch: true });
                             showNotification('Patient removed', 'success');
                         } catch (err) {
                             showNotification('Unable to remove patient. Network error.', 'danger');
                         } finally {
-                            hideLoading(loading);
+                            hideLoading();
                         }
                     }
                 }));
@@ -1576,7 +1615,46 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('dashboardPage').style.display = 'block';
             document.getElementById('patientsPage').style.display = 'block';
-            loadPatients();
+            loadPatients({ blocking: true, prefetch: true });
+            const refreshBtn = document.getElementById('refreshPatientsBtn');
+            if (refreshBtn) refreshBtn.addEventListener('click', async () => {
+                showUpdateStatus('Updating…', 'info');
+                try {
+                    await loadPatients({ blocking: false, prefetch: true });
+                    showUpdateStatus('Updated', 'success');
+                    setTimeout(hideUpdateStatus, 1500);
+                } catch {
+                    showUpdateStatus('Update failed', 'danger');
+                    setTimeout(hideUpdateStatus, 3000);
+                }
+            });
+
+            setInterval(async () => {
+                showUpdateStatus('Updating…', 'info');
+                try {
+                    await loadPatients({ blocking: false, prefetch: true });
+                    showUpdateStatus('Updated', 'success');
+                    setTimeout(hideUpdateStatus, 1500);
+                } catch {
+                    showUpdateStatus('Update failed', 'danger');
+                    setTimeout(hideUpdateStatus, 3000);
+                }
+            }, 60000);
+
+            function showUpdateStatus(text, type) {
+                const el = document.getElementById('updateStatus');
+                if (!el) return;
+                el.classList.remove('info', 'success', 'danger');
+                el.classList.add(type || 'info');
+                el.textContent = text || 'Updating…';
+                el.style.display = 'block';
+            }
+
+            function hideUpdateStatus() {
+                const el = document.getElementById('updateStatus');
+                if (!el) return;
+                el.style.display = 'none';
+            }
 
             const backBtn = document.getElementById('backToSearchBtn');
             if (backBtn) backBtn.addEventListener('click', () => document.getElementById('dashboardPageContent').style.display = 'none');
