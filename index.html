@@ -14,6 +14,9 @@
 
     <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PDF generation libs -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
     <!-- Custom CSS -->
     <style>
@@ -1691,6 +1694,9 @@
                 });
             });
 
+            const exportBtn = document.getElementById('exportReportBtn');
+            if (exportBtn) exportBtn.addEventListener('click', exportReport);
+
             const realtimeMetricButtons = document.querySelectorAll('[data-metric]');
             realtimeMetricButtons.forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -1704,6 +1710,105 @@
             });
         });
 
+    </script>
+    <script>
+        async function exportReport() {
+            if (!selectedPatientId) { showNotification('Select a patient first', 'warning'); return; }
+            // Ensure charts are ready and up to date
+            ensureCharts();
+            Object.values(charts).forEach(c => { if (c) c.update(); });
+
+            await showLoading('Exporting report…');
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation:'p', unit:'pt', format:'a4' });
+                const pageW = doc.internal.pageSize.getWidth();
+                const pageH = doc.internal.pageSize.getHeight();
+                const margin = 36;
+                let y = margin;
+
+                // Header
+                doc.setFontSize(18);
+                doc.text('Rehabilitation Report', margin, y);
+                y += 24;
+                doc.setFontSize(12);
+                const now = new Date().toLocaleString();
+                doc.text(`Generated: ${now}`, margin, y);
+                y += 18;
+                doc.text(`Patient: ${selectedPatientName || selectedPatientId}`, margin, y);
+                y += 18;
+                doc.text(`Patient ID: ${selectedPatientId}`, margin, y);
+                y += 18;
+
+                // Latest metrics
+                const latest = (patientData && patientData.latestRecord) ? patientData.latestRecord : null;
+                if (latest) {
+                    doc.text(`Latest - Pulse: ${latest.pulse ?? '-'}  Movement: ${latest.movementMagnitude ?? '-'}  Sleep: ${latest.sleepQualityScore ?? '-'}`, margin, y);
+                    y += 18;
+                }
+
+                // Table: lastSevenDays
+                const rows = (patientData && patientData.lastSevenDays) ? patientData.lastSevenDays : [];
+                if (rows.length) {
+                    doc.setFontSize(13);
+                    doc.text('Recent Data (up to 7):', margin, y);
+                    y += 14;
+                    doc.setFontSize(11);
+                    const header = ['Date','Pulse','Pulse MA','Movement','Move MA','Sleep','Status'];
+                    const colW = [140, 60, 60, 70, 70, 60, 70];
+                    const drawRow = (arr) => {
+                        let x = margin;
+                        arr.forEach((cell, i) => {
+                            doc.text(String(cell ?? ''), x, y, { maxWidth: colW[i] - 4 });
+                            x += colW[i];
+                        });
+                        y += 14;
+                        if (y > pageH - margin) { doc.addPage(); y = margin; }
+                    };
+                    drawRow(header);
+                    rows.forEach(r => drawRow([
+                        r.timestamp || '', r.pulse ?? '', r.pulseMA ?? '', r.movementMagnitude ?? '', r.movementMA ?? '', r.sleepQualityScore ?? '', (r.isPulseAnomaly ? 'Anomaly' : 'Normal')
+                    ]));
+                    y += 6;
+                }
+
+                // Helper: add canvas image to PDF with scaling
+                const addCanvas = (canvasId, title) => {
+                    const el = document.getElementById(canvasId);
+                    if (!el) return;
+                    const canvas = el instanceof HTMLCanvasElement ? el : el.querySelector('canvas');
+                    if (!canvas) return;
+                    const img = canvas.toDataURL('image/png', 1.0);
+                    const maxW = pageW - margin * 2;
+                    const maxH = pageH - margin * 2 - 20;
+                    const ratio = Math.min(maxW / canvas.width, maxH / canvas.height);
+                    const w = Math.max(10, canvas.width * ratio);
+                    const h = Math.max(10, canvas.height * ratio);
+                    if (y + 20 + h > pageH - margin) { doc.addPage(); y = margin; }
+                    if (title) { doc.setFontSize(13); doc.text(title, margin, y); y += 16; }
+                    doc.addImage(img, 'PNG', margin, y, w, h);
+                    y += h + 12;
+                };
+
+                // Charts
+                addCanvas('realtimeChart', 'Today\'s Activity');
+                addCanvas('movementChart', '7-Day Movement Trend');
+                addCanvas('progressChart', 'Overall Progress');
+                addCanvas('pulseDetailChart', 'Pulse History');
+                addCanvas('movementDetailChart', 'Movement History');
+                addCanvas('sleepDetailChart', 'Sleep History');
+                addCanvas('jointAnglesChart', 'Joint Angles History');
+
+                // Save
+                const fname = `RehabReport_${selectedPatientId}_${new Date().toISOString().slice(0,10)}.pdf`;
+                doc.save(fname);
+            } catch (err) {
+                console.error('Export error:', err);
+                showNotification('Failed to export report', 'danger');
+            } finally {
+                hideLoading();
+            }
+        }
     </script>
 </body>
 
