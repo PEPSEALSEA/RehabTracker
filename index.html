@@ -841,7 +841,7 @@
                                 <div class="card-header">
                                     <h5 class="mb-0">Joint Angles</h5>
                                     <button class="btn btn-sm btn-outline-primary"
-                                        onclick="loadPatientData(selectedPatientId)">
+                                        onclick="loadPatientData(selectedPatientId, { showSpinner: true, forceRefresh: true }); startPatientAutoRefresh(selectedPatientId);">
                                         <i class="fas fa-sync-alt me-1"></i> Refresh
                                     </button>
                                 </div>
@@ -1144,6 +1144,7 @@
         let patients = [];
         let currentDoctorId = '';
         let currentDoctorName = '';
+        let patientRefreshTimer = null;
 
         const userTimeZone = (() => {
             try {
@@ -1168,6 +1169,25 @@
             if (Number.isNaN(date.getTime())) return value;
             if (localTimeFormatter) return localTimeFormatter.format(date);
             return date.toLocaleTimeString();
+        }
+
+        function stopPatientAutoRefresh() {
+            if (patientRefreshTimer) {
+                clearInterval(patientRefreshTimer);
+                patientRefreshTimer = null;
+            }
+        }
+
+        function startPatientAutoRefresh(patientId, intervalMs = 15000) {
+            stopPatientAutoRefresh();
+            if (!patientId) return;
+            patientRefreshTimer = setInterval(async () => {
+                try {
+                    await loadPatientData(patientId, { showSpinner: false, forceRefresh: true, silent: true });
+                } catch (err) {
+                    console.warn('Auto-refresh failed', err);
+                }
+            }, Math.max(3000, intervalMs));
         }
 
         // Utility Functions
@@ -1544,26 +1564,38 @@
             await Promise.all(tasks);
         }
 
-        async function loadPatientData(patientId) {
-            const loading = await showLoading('Loading data…');
+        async function loadPatientData(patientId, options = {}) {
+            const { showSpinner = true, forceRefresh = false, silent = false } = options;
+            if (showSpinner) {
+                await showLoading('Loading data…');
+            }
 
             try {
-                if (patientDataCache[patientId]) {
+                if (!patientId) {
+                    patientData = { latestRecord: null, lastSevenDays: [] };
+                    renderPatientData();
+                    return;
+                }
+
+                if (!forceRefresh && patientDataCache[patientId]) {
                     patientData = patientDataCache[patientId];
                     renderPatientData();
                     return;
                 }
+
                 const result = await apiCall('', 'GET', { action: 'getPatientData', doctorId: getDoctorId(), patientId });
                 patientDataCache[patientId] = result;
                 patientData = result;
                 renderPatientData();
             } catch (error) {
                 console.error('Error loading patient data:', error);
-                showNotification('Unable to load patient data. Network error.', 'danger');
-                patientData = { latestRecord: null, lastSevenDays: [] };
-                renderPatientData();
+                if (!silent) showNotification('Unable to load patient data. Network error.', 'danger');
+                if (!patientData || !patientData.latestRecord) {
+                    patientData = { latestRecord: null, lastSevenDays: [] };
+                    renderPatientData();
+                }
             } finally {
-                hideLoading();
+                if (showSpinner) hideLoading();
             }
         }
 
@@ -1685,15 +1717,23 @@
                 .forEach(btn => btn.addEventListener('click', async (e) => {
                     const action = e.currentTarget.dataset.action;
                     const pid = e.currentTarget.dataset.id;
+                    const patient = patients.find(pt => pt.patientId === pid);
                     if (action === 'view') {
                         selectedPatientId = pid;
-                        selectedPatientName = pid;
+                        selectedPatientName = patient && patient.name ? patient.name : pid;
                         const nameEl = document.getElementById('selectedPatientName');
                         const detailsEl = document.getElementById('selectedPatientDetails');
-                        if (nameEl) nameEl.textContent = `Patient ${selectedPatientName}`;
-                        if (detailsEl) detailsEl.textContent = `Viewing data for ${selectedPatientName}`;
+                        if (nameEl) nameEl.textContent = selectedPatientName;
+                        if (detailsEl) {
+                            const parts = [];
+                            parts.push(`ID: ${pid}`);
+                            if (patient && patient.age !== undefined) parts.push(`Age: ${patient.age}`);
+                            if (patient && patient.condition) parts.push(patient.condition);
+                            detailsEl.textContent = parts.join(' • ');
+                        }
                         document.getElementById('dashboardPageContent').style.display = 'block';
-                        await loadPatientData(pid);
+                        await loadPatientData(pid, { showSpinner: true, forceRefresh: true });
+                        startPatientAutoRefresh(pid);
                         updateHashState();
                     } else if (action === 'remove') {
                         if (!confirm('Remove this patient and associated data?')) return;
@@ -1702,6 +1742,10 @@
                             await apiCall('', 'POST', { action:'removePatient', doctorId: getDoctorId(), patientId: pid });
                             await loadPatients({ blocking: false, prefetch: true });
                             showNotification('Patient removed', 'success');
+                            if (selectedPatientId === pid) {
+                                stopPatientAutoRefresh();
+                                document.getElementById('dashboardPageContent').style.display = 'none';
+                            }
                         } catch (err) {
                             showNotification('Unable to remove patient. Network error.', 'danger');
                         } finally {
@@ -1715,7 +1759,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('dashboardPage').style.display = 'block';
             document.getElementById('patientsPage').style.display = 'block';
-            loadPatients({ blocking: true, prefetch: true });
+            loadPatients({ blocking: true, prefetch: true }).finally(() => restoreHashState());
             const refreshBtn = document.getElementById('refreshPatientsBtn');
             if (refreshBtn) refreshBtn.addEventListener('click', async () => {
                 showUpdateStatus('Updating…', 'info');
@@ -1757,7 +1801,10 @@
             }
 
             const backBtn = document.getElementById('backToSearchBtn');
-            if (backBtn) backBtn.addEventListener('click', () => document.getElementById('dashboardPageContent').style.display = 'none');
+            if (backBtn) backBtn.addEventListener('click', () => {
+                stopPatientAutoRefresh();
+                document.getElementById('dashboardPageContent').style.display = 'none';
+            });
 
             const addForm = document.getElementById('addPatientForm');
             addForm.addEventListener('submit', addNewPatient);
@@ -1778,6 +1825,11 @@
                     if (pageEl) pageEl.style.display = 'block';
                     document.querySelectorAll('#sidebar .nav-item').forEach(n => n.classList.remove('active'));
                     this.classList.add('active');
+                    if (page === 'dashboard') {
+                        if (selectedPatientId) startPatientAutoRefresh(selectedPatientId);
+                    } else {
+                        stopPatientAutoRefresh();
+                    }
                     ensureCharts();
                 });
             });
@@ -1805,8 +1857,7 @@
                     updateCharts(latest, last7);
                 });
             });
-            // Restore state from URL hash
-            restoreHashState();
+            // Restore state from URL hash (handled after initial load)
         });
 
         function renderPatientsPagination(page, maxPage) {
@@ -1858,13 +1909,21 @@
             }
             if (pid) {
                 selectedPatientId = pid;
-                selectedPatientName = pid;
+                const patient = patients.find(pt => pt.patientId === pid);
+                selectedPatientName = patient && patient.name ? patient.name : pid;
                 const nameEl = document.getElementById('selectedPatientName');
                 const detailsEl = document.getElementById('selectedPatientDetails');
-                if (nameEl) nameEl.textContent = `Patient ${selectedPatientName}`;
-                if (detailsEl) detailsEl.textContent = `Viewing data for ${selectedPatientName}`;
+                if (nameEl) nameEl.textContent = selectedPatientName;
+                if (detailsEl) {
+                    const parts = [];
+                    parts.push(`ID: ${pid}`);
+                    if (patient && patient.age !== undefined) parts.push(`Age: ${patient.age}`);
+                    if (patient && patient.condition) parts.push(patient.condition);
+                    detailsEl.textContent = parts.join(' • ');
+                }
                 document.getElementById('dashboardPageContent').style.display = 'block';
-                loadPatientData(pid).catch(()=>{});
+                loadPatientData(pid, { showSpinner: true, forceRefresh: true })
+                    .finally(() => startPatientAutoRefresh(pid));
             }
         }
 
