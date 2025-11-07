@@ -1697,9 +1697,10 @@
 
         async function prefetchAllPatientData(ids) {
             const unique = Array.from(new Set(ids.filter(Boolean)));
+            const doctorIdToSend = getDoctorId() || 'PUBLIC';
             const tasks = unique.map(async (pid) => {
                 try {
-                    const res = await apiCall('', 'GET', { action: 'getPatientData', doctorId: getDoctorId(), patientId: pid });
+                    const res = await apiCall('', 'GET', { action: 'getPatientData', doctorId: doctorIdToSend, patientId: pid });
                     patientDataCache[pid] = res;
                 } catch {}
             });
@@ -1726,7 +1727,8 @@
                     return;
                 }
 
-                const result = await apiCall('', 'GET', { action: 'getPatientData', doctorId: getDoctorId(), patientId });
+                const doctorIdToSend = getDoctorId() || 'PUBLIC';
+                const result = await apiCall('', 'GET', { action: 'getPatientData', doctorId: doctorIdToSend, patientId });
                 patientDataCache[patientId] = result;
                 patientData = result;
                 renderPatientData();
