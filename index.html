@@ -1709,13 +1709,6 @@
         async function loadPatientData(patientId, options = {}) {
             const { showSpinner = true, forceRefresh = false, silent = false } = options;
             
-            if (getDoctorId() === 'PUBLIC') {
-                if (!silent) showNotification('Please login to view patient data', 'warning');
-                patientData = { latestRecord: null, lastSevenDays: [] };
-                renderPatientData();
-                return;
-            }
-            
             if (showSpinner) {
                 await showLoading('Loading data…');
             }
@@ -2210,12 +2203,13 @@
                         showNotification('Please login to add patients', 'danger');
                         return;
                     }
+                    const currentDocId = getDoctorId();
                     const loading = await showLoading('Adding patient...');
                     try {
                         const result = await apiCall('', 'GET', { 
                             action: 'addPatientByPatientId', 
                             patientId: patientId, 
-                            doctorId: getDoctorId() 
+                            doctorId: currentDocId 
                         });
                         if (result.status === 'success') {
                             const modal = bootstrap.Modal.getInstance(document.getElementById('addExistingPatientModal'));
@@ -2223,11 +2217,14 @@
                             document.getElementById('addExistingPatientForm').reset();
                             await loadPatients({ blocking: false, prefetch: true });
                             showNotification(result.message || 'Patient added successfully!', 'success');
+                            updateCurrentUserDisplay();
                         } else {
                             showNotification(result.message || 'Failed to add patient', 'danger');
                         }
                     } catch (error) {
-                        showNotification('Unable to add patient. ' + (error.message || 'Network error'), 'danger');
+                        console.error('Error adding existing patient:', error);
+                        const errorMsg = error && error.message ? error.message : 'Network error';
+                        showNotification('Unable to add patient. ' + errorMsg, 'danger');
                     } finally {
                         hideLoading();
                     }
@@ -2285,10 +2282,6 @@
                 if (!isNaN(p) && p > 0) patientsPage = p;
             }
             if (pid) {
-                if (getDoctorId() === 'PUBLIC') {
-                    showNotification('Please login to view patient data', 'warning');
-                    return;
-                }
                 selectedPatientId = pid;
                 const patient = patients.find(pt => pt.patientId === pid);
                 selectedPatientName = patient && patient.name ? patient.name : pid;
@@ -2304,7 +2297,11 @@
                 }
                 document.getElementById('dashboardPageContent').style.display = 'block';
                 loadPatientData(pid, { showSpinner: true, forceRefresh: true })
-                    .finally(() => startPatientAutoRefresh(pid));
+                    .finally(() => {
+                        if (getDoctorId() !== 'PUBLIC' && selectedPatientId) {
+                            startPatientAutoRefresh(pid);
+                        }
+                    });
             }
         }
 
