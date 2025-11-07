@@ -1145,6 +1145,31 @@
         let currentDoctorId = '';
         let currentDoctorName = '';
 
+        const userTimeZone = (() => {
+            try {
+                const opts = Intl.DateTimeFormat().resolvedOptions();
+                return (opts && opts.timeZone) ? opts.timeZone : undefined;
+            } catch {
+                return undefined;
+            }
+        })();
+
+        const localTimeFormatter = (() => {
+            try {
+                return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: userTimeZone });
+            } catch {
+                return null;
+            }
+        })();
+
+        function formatLocalTime(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return value;
+            if (localTimeFormatter) return localTimeFormatter.format(date);
+            return date.toLocaleTimeString();
+        }
+
         // Utility Functions
         function showNotification(message, type = 'success') {
             const container = document.getElementById('notificationContainer');
@@ -1369,7 +1394,7 @@
 
         function updateCharts(latest, last7) {
             ensureCharts();
-            const labels = last7.map(r => r.timestamp || '');
+            const labels = last7.map(r => formatLocalTime(r.timestamp));
             const pulse = last7.map(r => r.pulse ?? null);
             const move = last7.map(r => r.movementMagnitude ?? null);
             const sleep = last7.map(r => r.sleepQualityScore ?? null);
@@ -1565,7 +1590,7 @@
                 last7.forEach(r => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${r.timestamp || ''}</td>
+                        <td>${formatLocalTime(r.timestamp)}</td>
                         <td>${r.pulse ?? ''}</td>
                         <td>${r.pulseMA ?? ''}</td>
                         <td>${r.movementMagnitude ?? ''}</td>
@@ -1900,7 +1925,7 @@
                     };
                     drawRow(header);
                     rows.forEach(r => drawRow([
-                        r.timestamp || '', r.pulse ?? '', r.pulseMA ?? '', r.movementMagnitude ?? '', r.movementMA ?? '', r.sleepQualityScore ?? '', (r.isPulseAnomaly ? 'Anomaly' : 'Normal')
+                        formatLocalTime(r.timestamp), r.pulse ?? '', r.pulseMA ?? '', r.movementMagnitude ?? '', r.movementMA ?? '', r.sleepQualityScore ?? '', (r.isPulseAnomaly ? 'Anomaly' : 'Normal')
                     ]));
                     y += 6;
                 }
