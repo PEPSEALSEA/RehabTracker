@@ -1090,11 +1090,6 @@
                         <div class="card-body">
                             <form id="registerForm">
                                 <div class="mb-3">
-                                    <label for="registerDoctorId" class="form-label">Doctor ID</label>
-                                    <input type="text" class="form-control" id="registerDoctorId" required
-                                        placeholder="Choose a unique Doctor ID">
-                                </div>
-                                <div class="mb-3">
                                     <label for="registerDoctorName" class="form-label">Doctor Name</label>
                                     <input type="text" class="form-control" id="registerDoctorName" required
                                         placeholder="Enter your full name">
@@ -1111,6 +1106,19 @@
                                 </div>
                                 <button type="submit" class="btn btn-success">Register</button>
                             </form>
+                            
+                            <!-- Generated Doctor ID Display -->
+                            <div id="generatedDoctorIdCard" class="alert alert-warning mt-3" style="display: none;">
+                                <h6 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Important: Save Your Doctor ID</h6>
+                                <p class="mb-2"><strong>Your Doctor ID has been generated:</strong></p>
+                                <div class="d-flex align-items-center mb-2">
+                                    <code id="generatedDoctorId" class="fs-5 me-2" style="background: #fff; padding: 8px 12px; border-radius: 4px; border: 2px solid #ffc107;"></code>
+                                    <button class="btn btn-sm btn-outline-secondary" id="copyDoctorIdBtn" title="Copy to clipboard">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <p class="mb-0"><small><strong>Warning:</strong> Please save this Doctor ID now. You will need it to log in. If you lose it, you cannot recover it.</small></p>
+                            </div>
                         </div>
                     </div>
 
@@ -1961,11 +1969,10 @@
             if (registerForm) {
                 registerForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
-                    const doctorId = document.getElementById('registerDoctorId').value.trim();
                     const doctorName = document.getElementById('registerDoctorName').value.trim();
                     const password = document.getElementById('registerPassword').value;
                     const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
-                    if (!doctorId || !doctorName || !password) {
+                    if (!doctorName || !password) {
                         showNotification('Please fill in all fields', 'danger');
                         return;
                     }
@@ -1979,10 +1986,19 @@
                     }
                     const loading = await showLoading('Registering...');
                     try {
-                        const result = await apiCall('', 'POST', { action: 'register', doctorId, doctorName, password });
+                        const result = await apiCall('', 'POST', { action: 'register', doctorName, password });
                         if (result.status === 'success') {
                             document.getElementById('registerForm').reset();
-                            showNotification('Registration successful! You can now login.', 'success');
+                            const generatedDoctorIdCard = document.getElementById('generatedDoctorIdCard');
+                            const generatedDoctorId = document.getElementById('generatedDoctorId');
+                            if (result.doctorId && generatedDoctorIdCard && generatedDoctorId) {
+                                generatedDoctorId.textContent = result.doctorId;
+                                generatedDoctorIdCard.style.display = 'block';
+                                generatedDoctorIdCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                showNotification('Registration successful! Please save your Doctor ID below.', 'success');
+                            } else {
+                                showNotification('Registration successful!', 'success');
+                            }
                         } else {
                             showNotification(result.message || 'Registration failed', 'danger');
                         }
@@ -1990,6 +2006,29 @@
                         showNotification('Registration failed: ' + (error.message || 'Network error'), 'danger');
                     } finally {
                         hideLoading();
+                    }
+                });
+            }
+
+            const copyDoctorIdBtn = document.getElementById('copyDoctorIdBtn');
+            if (copyDoctorIdBtn) {
+                copyDoctorIdBtn.addEventListener('click', () => {
+                    const generatedDoctorId = document.getElementById('generatedDoctorId');
+                    if (generatedDoctorId && generatedDoctorId.textContent) {
+                        navigator.clipboard.writeText(generatedDoctorId.textContent).then(() => {
+                            const originalHTML = copyDoctorIdBtn.innerHTML;
+                            copyDoctorIdBtn.innerHTML = '<i class="fas fa-check"></i>';
+                            copyDoctorIdBtn.classList.add('btn-success');
+                            copyDoctorIdBtn.classList.remove('btn-outline-secondary');
+                            showNotification('Doctor ID copied to clipboard!', 'success');
+                            setTimeout(() => {
+                                copyDoctorIdBtn.innerHTML = originalHTML;
+                                copyDoctorIdBtn.classList.remove('btn-success');
+                                copyDoctorIdBtn.classList.add('btn-outline-secondary');
+                            }, 2000);
+                        }).catch(() => {
+                            showNotification('Failed to copy to clipboard', 'danger');
+                        });
                     }
                 });
             }
