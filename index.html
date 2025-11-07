@@ -624,6 +624,68 @@
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
         }
 
+        .chat-message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 12px;
+            max-width: 75%;
+            word-wrap: break-word;
+        }
+
+        .chat-message.sent {
+            background-color: var(--primary-color);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-message.received {
+            background-color: white;
+            color: var(--dark-color);
+            border: 1px solid #e0e0e0;
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-message-header {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .chat-message-text {
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .chat-message-time {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        #chatMessages {
+            scroll-behavior: smooth;
+        }
+
+        #chatMessages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #chatMessages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        #chatMessages::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+
+        #chatMessages::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
         .dev-settings {
             position: fixed;
             bottom: 10px;
@@ -1141,9 +1203,9 @@
                 </div>
         </main>
 
-        <!-- Floating Action Button for Simulating Data -->
-        <button class="fab" id="simulateDataBtn" title="Simulate Patient Data">
-            <i class="fas fa-plus"></i>
+        <!-- Floating Action Button for Chat -->
+        <button class="fab" id="chatBtn" title="Open Chat">
+            <i class="fas fa-comments"></i>
         </button>
 
     </div>
@@ -1248,6 +1310,42 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" id="saveExistingPatientBtn">Add Patient</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div class="modal fade" id="chatModal" tabindex="-1" aria-labelledby="chatModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content" style="height: 600px; display: flex; flex-direction: column;">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="chatModalLabel">
+                        <i class="fas fa-comments me-2"></i>Chat
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clearChatCacheBtn" title="Clear Cache">
+                            <i class="fas fa-broom"></i>
+                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                </div>
+                <div class="modal-body flex-grow-1 d-flex flex-column p-0" style="overflow: hidden;">
+                    <div id="chatMessages" style="flex: 1; overflow-y: auto; padding: 15px; background-color: #f8f9fa;">
+                        <div class="text-center text-muted">
+                            <div class="spinner"></div>
+                            <p class="mt-2">Loading messages...</p>
+                        </div>
+                    </div>
+                    <div class="border-top p-3" style="background-color: white;">
+                        <form id="chatForm" class="d-flex gap-2">
+                            <input type="text" class="form-control" id="chatMessageInput" 
+                                placeholder="Type your message..." autocomplete="off" required>
+                            <button type="submit" class="btn btn-primary" id="sendChatBtn">
+                                <i class="fas fa-paper-plane"></i> Send
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2229,6 +2327,186 @@
                         showNotification('Unable to add patient. ' + errorMsg, 'danger');
                     } finally {
                         hideLoading();
+                    }
+                });
+            }
+
+            let chatRefreshTimer = null;
+            let lastChatTimestamp = null;
+
+            function formatChatTime(timestamp) {
+                if (!timestamp) return '';
+                try {
+                    const date = new Date(timestamp);
+                    if (isNaN(date.getTime())) return timestamp;
+                    const now = new Date();
+                    const diffMs = now - date;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+                    
+                    if (diffMins < 1) return 'Just now';
+                    if (diffMins < 60) return `${diffMins}m ago`;
+                    if (diffHours < 24) return `${diffHours}h ago`;
+                    if (diffDays < 7) return `${diffDays}d ago`;
+                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } catch {
+                    return timestamp;
+                }
+            }
+
+            function getChatSenderName() {
+                if (currentDoctorName) return currentDoctorName;
+                if (currentDoctorId && currentDoctorId !== 'PUBLIC') return `Doctor ${currentDoctorId.substring(0, 8)}`;
+                return 'Anonymous';
+            }
+
+            async function loadChatMessages(limit = 50, since = null) {
+                try {
+                    const params = { action: 'getChatMessages', limit: limit };
+                    if (since) params.since = since;
+                    const result = await apiCall('', 'GET', params);
+                    if (result.status === 'success' && result.messages) {
+                        return result.messages;
+                    }
+                    return [];
+                } catch (error) {
+                    console.error('Error loading chat messages:', error);
+                    return [];
+                }
+            }
+
+            function renderChatMessages(messages) {
+                const container = document.getElementById('chatMessages');
+                if (!container) return;
+                
+                if (messages.length === 0) {
+                    container.innerHTML = '<div class="text-center text-muted"><p>No messages yet. Start the conversation!</p></div>';
+                    return;
+                }
+
+                const currentSender = getChatSenderName();
+                container.innerHTML = messages.map(msg => {
+                    const isSent = msg.sender === currentSender || (currentDoctorId && msg.sender === currentDoctorId);
+                    const messageClass = isSent ? 'sent' : 'received';
+                    return `
+                        <div class="chat-message ${messageClass}">
+                            <div class="chat-message-header">${msg.sender}</div>
+                            <div class="chat-message-text">${escapeHtml(msg.message)}</div>
+                            <div class="chat-message-time">${formatChatTime(msg.timestamp)}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+                container.scrollTop = container.scrollHeight;
+                
+                if (messages.length > 0) {
+                    lastChatTimestamp = messages[messages.length - 1].timestamp;
+                }
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            async function sendChatMessage(message) {
+                if (!message || !message.trim()) return false;
+                const sender = getChatSenderName();
+                try {
+                    const result = await apiCall('', 'GET', {
+                        action: 'sendChatMessage',
+                        sender: sender,
+                        message: message.trim()
+                    });
+                    if (result.status === 'success') {
+                        return true;
+                    }
+                    return false;
+                } catch (error) {
+                    console.error('Error sending chat message:', error);
+                    return false;
+                }
+            }
+
+            function startChatAutoRefresh() {
+                stopChatAutoRefresh();
+                chatRefreshTimer = setInterval(async () => {
+                    try {
+                        const messages = await loadChatMessages(50, lastChatTimestamp);
+                        if (messages.length > 0) {
+                            const allMessages = await loadChatMessages(100);
+                            renderChatMessages(allMessages);
+                        }
+                    } catch (err) {
+                        console.warn('Chat auto-refresh failed', err);
+                    }
+                }, 3000);
+            }
+
+            function stopChatAutoRefresh() {
+                if (chatRefreshTimer) {
+                    clearInterval(chatRefreshTimer);
+                    chatRefreshTimer = null;
+                }
+            }
+
+            const chatBtn = document.getElementById('chatBtn');
+            if (chatBtn) {
+                chatBtn.addEventListener('click', async () => {
+                    const modal = new bootstrap.Modal(document.getElementById('chatModal'));
+                    modal.show();
+                    
+                    const messages = await loadChatMessages(100);
+                    renderChatMessages(messages);
+                    startChatAutoRefresh();
+                });
+            }
+
+            const chatModal = document.getElementById('chatModal');
+            if (chatModal) {
+                chatModal.addEventListener('hidden.bs.modal', () => {
+                    stopChatAutoRefresh();
+                });
+            }
+
+            const chatForm = document.getElementById('chatForm');
+            if (chatForm) {
+                chatForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const input = document.getElementById('chatMessageInput');
+                    const message = input.value.trim();
+                    if (!message) return;
+                    
+                    const sendBtn = document.getElementById('sendChatBtn');
+                    sendBtn.disabled = true;
+                    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                    
+                    const success = await sendChatMessage(message);
+                    if (success) {
+                        input.value = '';
+                        const messages = await loadChatMessages(100);
+                        renderChatMessages(messages);
+                    } else {
+                        showNotification('Failed to send message', 'danger');
+                    }
+                    
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+                });
+            }
+
+            const clearChatCacheBtn = document.getElementById('clearChatCacheBtn');
+            if (clearChatCacheBtn) {
+                clearChatCacheBtn.addEventListener('click', async () => {
+                    try {
+                        await apiCall('', 'GET', { action: 'clearChatCache' });
+                        showNotification('Chat cache cleared', 'success');
+                        const messages = await loadChatMessages(100);
+                        renderChatMessages(messages);
+                    } catch (error) {
+                        showNotification('Failed to clear cache', 'danger');
                     }
                 });
             }
