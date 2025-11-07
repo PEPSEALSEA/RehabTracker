@@ -1986,7 +1986,7 @@
                     }
                     const loading = await showLoading('Registering...');
                     try {
-                        const result = await apiCall('', 'POST', { action: 'register', doctorName, password });
+                        const result = await apiCall('', 'GET', { action: 'register', doctorName, password });
                         if (result.status === 'success') {
                             document.getElementById('registerForm').reset();
                             const generatedDoctorIdCard = document.getElementById('generatedDoctorIdCard');
