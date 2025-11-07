@@ -693,8 +693,8 @@
                 <span>Analytics</span>
             </a>
             <a href="#" class="nav-item" data-page="settings">
-                <i class="fas fa-cog"></i>
-                <span>Settings</span>
+                <i class="fas fa-user-md"></i>
+                <span>Login/Register</span>
             </a>
         </nav>
 
@@ -1056,30 +1056,73 @@
                     </div>
                 </div>
 
-                <!-- Settings Page -->
+                <!-- Login/Register Page -->
                 <div id="settingsPage" class="page-content" style="display: none;">
-                    <h1 class="page-title">Settings</h1>
-                    <div class="card">
+                    <h1 class="page-title">Doctor Login & Registration</h1>
+                    
+                    <!-- Login Card -->
+                    <div class="card mb-4">
                         <div class="card-header">
-                            <h5 class="mb-0">Application Settings</h5>
+                            <h5 class="mb-0">Login</h5>
                         </div>
                         <div class="card-body">
-                            <div class="mb-3">
-                                <label for="settingsDoctorName" class="form-label">Doctor Name</label>
-                                <input type="text" class="form-control" id="settingsDoctorName">
-                            </div>
-                            <div class="mb-3">
-                                <label for="settingsHospital" class="form-label">Hospital/Clinic Name</label>
-                                <input type="text" class="form-control" id="settingsHospital"
-                                    placeholder="Enter hospital/clinic name">
-                            </div>
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="settingsNotifications" checked>
-                                <label class="form-check-label" for="settingsNotifications">
-                                    Enable notifications for anomaly alerts
-                                </label>
-                            </div>
-                            <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+                            <form id="loginForm">
+                                <div class="mb-3">
+                                    <label for="loginDoctorId" class="form-label">Doctor ID</label>
+                                    <input type="text" class="form-control" id="loginDoctorId" required
+                                        placeholder="Enter your Doctor ID">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="loginPassword" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="loginPassword" required
+                                        placeholder="Enter your password">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Login</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Register Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Register New Doctor</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="registerForm">
+                                <div class="mb-3">
+                                    <label for="registerDoctorId" class="form-label">Doctor ID</label>
+                                    <input type="text" class="form-control" id="registerDoctorId" required
+                                        placeholder="Choose a unique Doctor ID">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="registerDoctorName" class="form-label">Doctor Name</label>
+                                    <input type="text" class="form-control" id="registerDoctorName" required
+                                        placeholder="Enter your full name">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="registerPassword" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="registerPassword" required
+                                        placeholder="Minimum 6 characters" minlength="6">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="registerPasswordConfirm" class="form-label">Confirm Password</label>
+                                    <input type="password" class="form-control" id="registerPasswordConfirm" required
+                                        placeholder="Re-enter your password" minlength="6">
+                                </div>
+                                <button type="submit" class="btn btn-success">Register</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Current User Info -->
+                    <div class="card mt-4" id="currentUserCard" style="display: none;">
+                        <div class="card-header">
+                            <h5 class="mb-0">Current Session</h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Logged in as:</strong> <span id="currentDoctorName">-</span></p>
+                            <p><strong>Doctor ID:</strong> <span id="currentDoctorIdDisplay">-</span></p>
+                            <button class="btn btn-outline-danger" id="logoutBtn">Logout</button>
                         </div>
                     </div>
                 </div>
@@ -1851,6 +1894,9 @@
                     } else {
                         stopPatientAutoRefresh();
                     }
+                    if (page === 'settings') {
+                        updateCurrentUserDisplay();
+                    }
                     ensureCharts();
                 });
             });
@@ -1878,6 +1924,103 @@
                     updateCharts(latest, last7);
                 });
             });
+
+            // Login/Register handlers
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const doctorId = document.getElementById('loginDoctorId').value.trim();
+                    const password = document.getElementById('loginPassword').value;
+                    if (!doctorId || !password) {
+                        showNotification('Please fill in all fields', 'danger');
+                        return;
+                    }
+                    const loading = await showLoading('Logging in...');
+                    try {
+                        const result = await apiCall('', 'GET', { action: 'login', doctorId, password });
+                        if (result.status === 'success') {
+                            currentDoctorId = result.doctorId;
+                            currentDoctorName = result.doctorName;
+                            updateCurrentUserDisplay();
+                            document.getElementById('loginForm').reset();
+                            showNotification('Login successful!', 'success');
+                            await loadPatients({ blocking: false, prefetch: true });
+                        } else {
+                            showNotification(result.message || 'Login failed', 'danger');
+                        }
+                    } catch (error) {
+                        showNotification('Login failed: ' + (error.message || 'Network error'), 'danger');
+                    } finally {
+                        hideLoading();
+                    }
+                });
+            }
+
+            const registerForm = document.getElementById('registerForm');
+            if (registerForm) {
+                registerForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const doctorId = document.getElementById('registerDoctorId').value.trim();
+                    const doctorName = document.getElementById('registerDoctorName').value.trim();
+                    const password = document.getElementById('registerPassword').value;
+                    const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
+                    if (!doctorId || !doctorName || !password) {
+                        showNotification('Please fill in all fields', 'danger');
+                        return;
+                    }
+                    if (password.length < 6) {
+                        showNotification('Password must be at least 6 characters', 'danger');
+                        return;
+                    }
+                    if (password !== passwordConfirm) {
+                        showNotification('Passwords do not match', 'danger');
+                        return;
+                    }
+                    const loading = await showLoading('Registering...');
+                    try {
+                        const result = await apiCall('', 'POST', { action: 'register', doctorId, doctorName, password });
+                        if (result.status === 'success') {
+                            document.getElementById('registerForm').reset();
+                            showNotification('Registration successful! You can now login.', 'success');
+                        } else {
+                            showNotification(result.message || 'Registration failed', 'danger');
+                        }
+                    } catch (error) {
+                        showNotification('Registration failed: ' + (error.message || 'Network error'), 'danger');
+                    } finally {
+                        hideLoading();
+                    }
+                });
+            }
+
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', () => {
+                    currentDoctorId = '';
+                    currentDoctorName = '';
+                    updateCurrentUserDisplay();
+                    showNotification('Logged out successfully', 'success');
+                    loadPatients({ blocking: false, prefetch: true });
+                });
+            }
+
+            function updateCurrentUserDisplay() {
+                const currentUserCard = document.getElementById('currentUserCard');
+                const currentDoctorNameEl = document.getElementById('currentDoctorName');
+                const currentDoctorIdDisplayEl = document.getElementById('currentDoctorIdDisplay');
+                if (currentDoctorId && currentDoctorName) {
+                    if (currentUserCard) currentUserCard.style.display = 'block';
+                    if (currentDoctorNameEl) currentDoctorNameEl.textContent = currentDoctorName;
+                    if (currentDoctorIdDisplayEl) currentDoctorIdDisplayEl.textContent = currentDoctorId;
+                } else {
+                    if (currentUserCard) currentUserCard.style.display = 'none';
+                    if (currentDoctorNameEl) currentDoctorNameEl.textContent = '-';
+                    if (currentDoctorIdDisplayEl) currentDoctorIdDisplayEl.textContent = '-';
+                }
+            }
+            window.updateCurrentUserDisplay = updateCurrentUserDisplay;
+
             // Restore state from URL hash (handled after initial load)
         });
 
