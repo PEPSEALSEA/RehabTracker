@@ -1171,6 +1171,27 @@
             return date.toLocaleTimeString();
         }
 
+        function formatMovement(value) {
+            if (value === null || value === undefined || value === '') return '--';
+            const num = Number(value);
+            if (isNaN(num)) return '--';
+            return (num + 100).toFixed(2);
+        }
+
+        function formatSleepScore(value) {
+            if (value === null || value === undefined || value === '') return '--';
+            const num = Number(value);
+            if (isNaN(num)) return '--';
+            return num.toFixed(2);
+        }
+
+        function getMovementForChart(value) {
+            if (value === null || value === undefined) return null;
+            const num = Number(value);
+            if (isNaN(num)) return null;
+            return num + 100;
+        }
+
         function stopPatientAutoRefresh() {
             if (patientRefreshTimer) {
                 clearInterval(patientRefreshTimer);
@@ -1416,7 +1437,7 @@
             ensureCharts();
             const labels = last7.map(r => formatLocalTime(r.timestamp));
             const pulse = last7.map(r => r.pulse ?? null);
-            const move = last7.map(r => r.movementMagnitude ?? null);
+            const move = last7.map(r => getMovementForChart(r.movementMagnitude));
             const sleep = last7.map(r => r.sleepQualityScore ?? null);
 
             if (charts.realtime) {
@@ -1609,8 +1630,8 @@
                 const moveEl = document.getElementById('movementValue');
                 const sleepEl = document.getElementById('sleepValue');
                 if (pulseEl) pulseEl.textContent = latest.pulse ?? '--';
-                if (moveEl) moveEl.textContent = latest.movementMagnitude ?? '--';
-                if (sleepEl) sleepEl.textContent = latest.sleepQualityScore ?? '--';
+                if (moveEl) moveEl.textContent = formatMovement(latest.movementMagnitude);
+                if (sleepEl) sleepEl.textContent = formatSleepScore(latest.sleepQualityScore);
 
                 const alertEl = document.getElementById('anomalyAlert');
                 if (alertEl) alertEl.style.display = latest.isPulseAnomaly ? 'flex' : 'none';
@@ -1625,9 +1646,9 @@
                         <td>${formatLocalTime(r.timestamp)}</td>
                         <td>${r.pulse ?? ''}</td>
                         <td>${r.pulseMA ?? ''}</td>
-                        <td>${r.movementMagnitude ?? ''}</td>
+                        <td>${formatMovement(r.movementMagnitude)}</td>
                         <td>${r.movementMA ?? ''}</td>
-                        <td>${r.sleepQualityScore ?? ''}</td>
+                        <td>${formatSleepScore(r.sleepQualityScore)}</td>
                         <td>
                             <span class="badge ${r.isPulseAnomaly ? 'badge-danger' : 'badge-success'}">
                                 ${r.isPulseAnomaly ? 'Anomaly' : 'Normal'}
@@ -1960,7 +1981,7 @@
                 // Latest metrics
                 const latest = (patientData && patientData.latestRecord) ? patientData.latestRecord : null;
                 if (latest) {
-                    doc.text(`Latest - Pulse: ${latest.pulse ?? '-'}  Movement: ${latest.movementMagnitude ?? '-'}  Sleep: ${latest.sleepQualityScore ?? '-'}`, margin, y);
+                    doc.text(`Latest - Pulse: ${latest.pulse ?? '-'}  Movement: ${formatMovement(latest.movementMagnitude)}  Sleep: ${formatSleepScore(latest.sleepQualityScore)}`, margin, y);
                     y += 18;
                 }
 
@@ -1984,7 +2005,7 @@
                     };
                     drawRow(header);
                     rows.forEach(r => drawRow([
-                        formatLocalTime(r.timestamp), r.pulse ?? '', r.pulseMA ?? '', r.movementMagnitude ?? '', r.movementMA ?? '', r.sleepQualityScore ?? '', (r.isPulseAnomaly ? 'Anomaly' : 'Normal')
+                        formatLocalTime(r.timestamp), r.pulse ?? '', r.pulseMA ?? '', formatMovement(r.movementMagnitude), r.movementMA ?? '', formatSleepScore(r.sleepQualityScore), (r.isPulseAnomaly ? 'Anomaly' : 'Normal')
                     ]));
                     y += 6;
                 }
