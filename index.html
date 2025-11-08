@@ -2487,34 +2487,65 @@
                 if (!container) return;
                 
                 if (conversations.length === 0) {
-                    container.innerHTML = '<div class="text-center text-muted p-4"><p>No conversations yet. Start chatting with doctors who share your patients!</p></div>';
+                    container.innerHTML = '<div class="text-center text-muted p-4"><p>No doctors found who share patients with you.</p></div>';
                     return;
                 }
 
                 totalUnreadCount = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
                 updateChatNotification();
 
-                container.innerHTML = conversations.map(conv => {
-                    const initials = conv.doctorName.substring(0, 2).toUpperCase();
-                    return `
-                        <div class="conversation-item" data-receiver-id="${conv.doctorId}">
-                            <div class="conversation-avatar">${initials}</div>
-                            <div class="conversation-content">
-                                <div class="conversation-header">
-                                    <span class="conversation-name">${escapeHtml(conv.doctorName)}</span>
-                                    <span class="conversation-time">${formatChatTime(conv.lastMessageTime)}</span>
+                const conversationsWithMessages = conversations.filter(c => c.hasMessages);
+                const conversationsWithoutMessages = conversations.filter(c => !c.hasMessages);
+
+                let html = '';
+                
+                if (conversationsWithMessages.length > 0) {
+                    html += conversationsWithMessages.map(conv => {
+                        const initials = (conv.doctorName || conv.doctorId).substring(0, 2).toUpperCase();
+                        return `
+                            <div class="conversation-item" data-receiver-id="${conv.doctorId}">
+                                <div class="conversation-avatar">${initials}</div>
+                                <div class="conversation-content">
+                                    <div class="conversation-header">
+                                        <span class="conversation-name">${escapeHtml(conv.doctorName || conv.doctorId)}</span>
+                                        <span class="conversation-time">${formatChatTime(conv.lastMessageTime)}</span>
+                                    </div>
+                                    <div class="conversation-preview">${escapeHtml(conv.lastMessage || '')}</div>
                                 </div>
-                                <div class="conversation-preview">${escapeHtml(conv.lastMessage)}</div>
+                                ${conv.unreadCount > 0 ? `<div class="conversation-unread">${conv.unreadCount}</div>` : ''}
                             </div>
-                            ${conv.unreadCount > 0 ? `<div class="conversation-unread">${conv.unreadCount}</div>` : ''}
-                        </div>
-                    `;
-                }).join('');
+                        `;
+                    }).join('');
+                }
+
+                if (conversationsWithoutMessages.length > 0) {
+                    if (conversationsWithMessages.length > 0) {
+                        html += '<div style="padding: 10px 15px; background-color: #f8f9fa; border-top: 2px solid #e0e0e0; border-bottom: 2px solid #e0e0e0; font-size: 0.85rem; font-weight: 600; color: var(--secondary-color);">Available Doctors</div>';
+                    }
+                    html += conversationsWithoutMessages.map(conv => {
+                        const initials = (conv.doctorName || conv.doctorId).substring(0, 2).toUpperCase();
+                        return `
+                            <div class="conversation-item" data-receiver-id="${conv.doctorId}">
+                                <div class="conversation-avatar" style="background-color: #6c757d;">${initials}</div>
+                                <div class="conversation-content">
+                                    <div class="conversation-header">
+                                        <span class="conversation-name">${escapeHtml(conv.doctorName || conv.doctorId)}</span>
+                                        <span class="conversation-time"></span>
+                                    </div>
+                                    <div class="conversation-preview" style="font-style: italic; color: var(--secondary-color);">Tap to start conversation</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                container.innerHTML = html;
 
                 container.querySelectorAll('.conversation-item').forEach(item => {
                     item.addEventListener('click', () => {
                         const receiverId = item.dataset.receiverId;
-                        openConversation(receiverId, item.querySelector('.conversation-name').textContent);
+                        const receiverName = item.querySelector('.conversation-name').textContent;
+                        openConversation(receiverId, receiverName);
                     });
                 });
             }
