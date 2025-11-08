@@ -2441,6 +2441,8 @@
             let currentReceiverId = null;
             let currentReceiverName = null;
             let totalUnreadCount = 0;
+            // Track previous conversations to detect new messages for notifications
+            let lastConversationsSnapshot = {};
 
             function formatChatTime(timestamp) {
                 if (!timestamp) return '';
@@ -2647,6 +2649,13 @@
                 
                 const messages = await loadChatMessages(receiverId, 100);
                 renderChatMessages(messages, receiverName);
+                // Attempt to mark messages as read server-side (if supported)
+                try {
+                    const senderId = getChatSenderId();
+                    await apiCall('', 'GET', { action: 'markChatRead', senderId: senderId, otherId: receiverId });
+                } catch (_) { /* optional endpoint may not exist */ }
+                // Refresh conversations/unread counts after opening
+                await loadAndRenderConversations();
                 startChatAutoRefresh();
             }
 
@@ -2694,11 +2703,13 @@
                         if (messages.length > 0) {
                             const allMessages = await loadChatMessages(currentReceiverId, 100);
                             renderChatMessages(allMessages, currentReceiverName);
+                            // Also refresh conversation list and badges when new messages arrive
+                            await loadAndRenderConversations();
                         }
                     } catch (err) {
                         console.warn('Chat auto-refresh failed', err);
                     }
-                }, 3000);
+                }, 2000);
             }
 
             function stopChatAutoRefresh() {
@@ -2712,7 +2723,7 @@
                 stopConversationsAutoRefresh();
                 conversationsRefreshTimer = setInterval(async () => {
                     await loadAndRenderConversations();
-                }, 5000);
+                }, 4000);
             }
 
             function stopConversationsAutoRefresh() {
@@ -2724,6 +2735,27 @@
 
             async function loadAndRenderConversations() {
                 const conversations = await loadConversations();
+                // Detect new unread messages to show system notifications
+                try {
+                    conversations.forEach(conv => {
+                        const prev = lastConversationsSnapshot[conv.otherId] || { unreadCount: 0, lastMessageTime: null };
+                        const unreadNow = conv.unreadCount || 0;
+                        const unreadPrev = prev.unreadCount || 0;
+                        if (unreadNow > unreadPrev) {
+                            const name = conv.otherName || conv.otherId;
+                            const preview = conv.lastMessage || '';
+                            showNotification(`New message from ${escapeHtml(name)}${conv.otherType === 'patient' ? ' (Patient)' : ''}: ${escapeHtml(preview)}`, 'info');
+                        }
+                    });
+                } catch (_) { /* best-effort notifications */ }
+                // Update snapshot
+                lastConversationsSnapshot = {};
+                conversations.forEach(conv => {
+                    lastConversationsSnapshot[conv.otherId] = {
+                        unreadCount: conv.unreadCount || 0,
+                        lastMessageTime: conv.lastMessageTime || null
+                    };
+                });
                 renderConversations(conversations);
             }
 
@@ -2818,7 +2850,7 @@
                 if (getChatSenderId() !== 'PUBLIC') {
                     await loadAndRenderConversations();
                 }
-            }, 10000);
+            }, 6000);
 
             // Restore state from URL hash (handled after initial load)
         });
