@@ -2684,7 +2684,7 @@
                 const typeBadge = receiverType === 'patient' ? ' <span class="badge bg-info" style="font-size: 0.75rem;">Patient</span>' : '';
                 document.getElementById('chatModalLabel').innerHTML = `<i class="fas fa-comments me-2"></i>${escapeHtml(receiverName)}${typeBadge}`;
                 
-                const messages = await loadChatMessages(receiverId, 50);
+                const messages = await loadChatMessages(receiverId, 20);
                 renderChatMessages(messages, receiverName);
                 // Attempt to mark messages as read server-side (if supported)
                 try {
@@ -2737,7 +2737,8 @@
                 if (!currentReceiverId) return;
                 chatRefreshTimer = setInterval(async () => {
                     try {
-                        const newMessages = await loadChatMessages(currentReceiverId, 50, lastServerChatTimestamp);
+                        // Fast path: only ask for the latest message since last server timestamp
+                        const newMessages = await loadChatMessages(currentReceiverId, 1, lastServerChatTimestamp);
                         if (newMessages.length > 0) {
                             appendChatMessages(newMessages, currentReceiverName);
                             // Also refresh conversation list and badges when new messages arrive
@@ -2746,7 +2747,7 @@
                     } catch (err) {
                         console.warn('Chat auto-refresh failed', err);
                     }
-                }, 2000);
+                }, 1200);
             }
 
             function stopChatAutoRefresh() {
@@ -2862,6 +2863,11 @@
                     const sendBtn = document.getElementById('sendChatBtn');
                     sendBtn.disabled = true;
                     sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                    // Make input readOnly (keep focus and caret visible in box)
+                    input.readOnly = true;
+                    input.focus();
+                    // Keep caret at end
+                    try { input.setSelectionRange(input.value.length, input.value.length); } catch {}
                     
                     const success = await sendChatMessage(message);
                     if (success) {
@@ -2886,6 +2892,10 @@
                     
                     sendBtn.disabled = false;
                     sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+                    // Re-enable input but keep focus and caret at start
+                    input.readOnly = false;
+                    input.focus();
+                    try { input.setSelectionRange(0, 0); } catch {}
                 });
             }
 
