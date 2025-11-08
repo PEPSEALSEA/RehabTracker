@@ -2440,6 +2440,7 @@
             }
 
             let chatRefreshTimer = null;
+            let chatRefreshInFlight = false;
             let conversationsRefreshTimer = null;
             let lastChatTimestamp = null;
             // Tracks last server-confirmed message timestamp to use for incremental fetches
@@ -2636,7 +2637,7 @@
                 const senderBadge = senderType === 'patient' ? ' <span class="badge bg-info" style="font-size: 0.65rem;">Patient</span>' : '';
                 const pendingClass = msg._pending ? ' pending' : '';
                 return `
-                    <div class="chat-message ${messageClass}${pendingClass}" data-sender-id="${senderId}" data-timestamp="${msg.timestamp || ''}" data-message-text="${escapeHtml(msg.message)}" ${msg._pending ? 'data-pending="1"' : ''}>
+                    <div class="chat-message ${messageClass}${pendingClass}" data-sender-id="${senderId}" data-timestamp="${msg.timestamp || ''}" data-message-id="${msg.messageId || ''}" data-message-text="${escapeHtml(msg.message)}" ${msg._pending ? 'data-pending="1"' : ''}>
                         <div class="chat-message-header">${escapeHtml(senderName)}${senderBadge}</div>
                         <div class="chat-message-text">${escapeHtml(msg.message)}</div>
                         <div class="chat-message-time">${formatChatTime(msg.timestamp || new Date().toISOString())}${msg._pending ? ' • Sending…' : ''}</div>
@@ -2651,15 +2652,31 @@
                 const currentSenderId = getChatSenderId();
 
                 newMessages.forEach(msg => {
-                    // If there is a pending (optimistic) bubble matching same text from current user, remove it
+                    // Dedupe by messageId if present
+                    if (msg.messageId) {
+                        const existing = container.querySelector(`.chat-message[data-message-id="${msg.messageId}"]`);
+                        if (existing) {
+                            return;
+                        }
+                    }
+                    // If there is a pending (optimistic) bubble matching same id/text from current user, remove it
                     if ((msg.senderId || msg.sender) === currentSenderId) {
-                        const pending = container.querySelector('.chat-message.sent.pending[data-pending="1"]');
-                        if (pending) {
-                            const pendingTextEl = pending.querySelector('.chat-message-text');
-                            const pendingTxt = pendingTextEl ? pendingTextEl.textContent : '';
-                            if ((msg.message || '') === pendingTxt) {
-                                pending.remove();
+                        let pending = null;
+                        if (msg.messageId) {
+                            pending = container.querySelector(`.chat-message.sent.pending[data-pending="1"][data-message-id="${msg.messageId}"]`);
+                        }
+                        if (!pending) {
+                            pending = container.querySelector('.chat-message.sent.pending[data-pending="1"]');
+                            if (pending) {
+                                const pendingTextEl = pending.querySelector('.chat-message-text');
+                                const pendingTxt = pendingTextEl ? pendingTextEl.textContent : '';
+                                if ((msg.message || '') !== pendingTxt) {
+                                    pending = null;
+                                }
                             }
+                        }
+                        if (pending) {
+                            pending.remove();
                         }
                     }
                     const html = createMessageBubbleHTML(msg, receiverName, currentSenderId);
@@ -2730,13 +2747,12 @@
                 loadAndRenderConversations();
             }
 
-            async function sendChatMessage(message) {
+            async function sendChatMessage(message, clientMessageId) {
                 if (!message || !message.trim() || !currentReceiverId) return false;
                 const senderId = getChatSenderId();
                 const senderType = 'doctor';
                 // Enforce doctor <-> patient chat direction
                 const receiverType = 'patient';
-                const clientMessageId = 'C' + Date.now() + '_' + Math.random().toString(36).slice(2,8).toUpperCase();
                 try {
                     const result = await apiCall('', 'GET', {
                         action: 'sendChatMessage',
@@ -2761,6 +2777,8 @@
                 stopChatAutoRefresh();
                 if (!currentReceiverId) return;
                 chatRefreshTimer = setInterval(async () => {
+                    if (chatRefreshInFlight) return;
+                    chatRefreshInFlight = true;
                     try {
                         // Fast path: only ask for the latest message since last server timestamp
                         const newMessages = await loadChatMessages(currentReceiverId, 1, lastServerChatTimestamp);
@@ -2771,6 +2789,8 @@
                         }
                     } catch (err) {
                         console.warn('Chat auto-refresh failed', err);
+                    } finally {
+                        chatRefreshInFlight = false;
                     }
                 }, 1200);
             }
@@ -2876,11 +2896,13 @@
                     if (!message || !currentReceiverId) return;
                     
                     // Optimistic UI: append a pending bubble immediately
+                const clientMessageId = 'C' + Date.now() + '_' + Math.random().toString(36).slice(2,8).toUpperCase();
                     const pendingMsg = {
                         senderId: getChatSenderId(),
                         senderType: 'doctor',
                         message: message,
                         timestamp: new Date().toISOString(),
+                        messageId: clientMessageId,
                         _pending: true
                     };
                     appendChatMessages([pendingMsg], currentReceiverName);
@@ -2894,7 +2916,7 @@
                     // Keep caret at end
                     try { input.setSelectionRange(input.value.length, input.value.length); } catch {}
                     
-                    const success = await sendChatMessage(message);
+                    const success = await sendChatMessage(message, clientMessageId);
                     if (success) {
                         input.value = '';
                         // Keep the pending bubble; it will be replaced by the confirmed message on next refresh
