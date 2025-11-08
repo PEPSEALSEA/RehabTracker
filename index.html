@@ -486,6 +486,21 @@
             color: var(--warning-color);
         }
 
+        /* KPI cards for Progress Summary */
+        .kpi-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            background:
+                linear-gradient(0deg, rgba(13,110,253,0.06), rgba(34,197,94,0.06)) top/100% 6px no-repeat,
+                #fff;
+        }
+        .kpi-body { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
+        .kpi-icon { width: 40px; height: 40px; border-radius: 50%; display:flex; align-items:center; justify-content:center; color:#fff; background-image: var(--brand-grad); box-shadow: 0 6px 16px rgba(13,110,253,0.25); }
+        .kpi-value { font-size: 1.4rem; font-weight: 700; line-height: 1; }
+        .kpi-caption { color: var(--secondary-color); font-size: 0.85rem; margin-top: 2px; }
+        .trend-chip { font-size: 0.75rem; font-weight: 600; padding: 4px 8px; border-radius: 999px; background: rgba(13,110,253,0.08); color: #0d6efd; }
+
         .chart-container {
             position: relative;
             height: 300px;
@@ -1184,10 +1199,58 @@
                                 <!-- 7-Day Movement Chart -->
                                 <div class="col-md-8">
                                     <div class="card">
-                                        <div class="card-header">
+                        <div class="card-header">
                                             <h5 class="mb-0">7-Day Movement Trend</h5>
                                         </div>
                                         <div class="card-body">
+                                            <div class="row g-3 mb-2">
+                                                <!-- KPI row -->
+                                                <div class="col-6 col-lg-3">
+                                                    <div class="card kpi-card">
+                                                        <div class="kpi-body">
+                                                            <div class="kpi-icon"><i class="fas fa-calendar-check"></i></div>
+                                                            <div>
+                                                                <div id="kpiAdherencePercent" class="kpi-value">--%</div>
+                                                                <div id="kpiAdherenceCaption" class="kpi-caption">Adherence (7d)</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6 col-lg-3">
+                                                    <div class="card kpi-card">
+                                                        <div class="kpi-body">
+                                                            <div class="kpi-icon"><i class="fas fa-walking"></i></div>
+                                                            <div>
+                                                                <div id="kpiAvgMovement" class="kpi-value">--</div>
+                                                                <div id="kpiAvgMovementCaption" class="kpi-caption">Avg Movement</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6 col-lg-3">
+                                                    <div class="card kpi-card">
+                                                        <div class="kpi-body">
+                                                            <div class="kpi-icon"><i class="fas fa-heartbeat"></i></div>
+                                                            <div>
+                                                                <div id="kpiAvgPulse" class="kpi-value">--</div>
+                                                                <div id="kpiAvgPulseCaption" class="kpi-caption">Avg Pulse</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6 col-lg-3">
+                                                    <div class="card kpi-card">
+                                                        <div class="kpi-body">
+                                                            <div class="kpi-icon"><i class="fas fa-bed"></i></div>
+                                                            <div>
+                                                                <div id="kpiAvgSleep" class="kpi-value">--</div>
+                                                                <div id="kpiAvgSleepCaption" class="kpi-caption">Avg Sleep Score</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                             <div class="chart-container">
                                                 <canvas id="movementChart"></canvas>
                                             </div>
@@ -1198,14 +1261,14 @@
                                 <!-- Progress Doughnut Chart -->
                                 <div class="col-md-4">
                                     <div class="card">
-                                        <div class="card-header">
+                                        <div class="card-header d-flex align-items-center justify-content-between">
                                             <h5 class="mb-0">Overall Progress</h5>
+                                            <span id="progressTrendChip" class="trend-chip" style="display:none;">+0%</span>
                                         </div>
                                         <div class="card-body text-center">
                                             <div class="chart-container">
                                                 <canvas id="progressChart"></canvas>
                                             </div>
-                                            <p class="mt-3 mb-0">68% Complete</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1793,6 +1856,26 @@
             jointAngles: null
         };
 
+        // Center text plugin for progress doughnut
+        const centerText = {
+            id: 'centerText',
+            afterDraw(chart, args, opts) {
+                if (chart.config.type !== 'doughnut') return;
+                const canvasId = chart.canvas && chart.canvas.id;
+                if (canvasId !== 'progressChart') return;
+                const {ctx, chartArea: { width, height }} = chart;
+                const total = chart.data.datasets[0].data[0] || 0;
+                const label = Math.round(total) + '%';
+                ctx.save();
+                ctx.font = '700 28px Segoe UI, system-ui, sans-serif';
+                ctx.fillStyle = '#212529';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, chart.getDatasetMeta(0).data[0].x, chart.getDatasetMeta(0).data[0].y);
+                ctx.restore();
+            }
+        };
+
         const PATIENTS_PER_PAGE = 4;
         let patientsPage = 1;
 
@@ -1817,10 +1900,16 @@
 
             const prCtx = document.getElementById('progressChart');
             if (prCtx && !charts.progress) {
+                // Register center text plugin once
+                if (typeof Chart !== 'undefined' && Chart.registry && !Chart.registry.plugins.get('centerText')) {
+                    Chart.register(centerText);
+                } else if (typeof Chart !== 'undefined') {
+                    try { Chart.register(centerText); } catch(e) { /* ignore */ }
+                }
                 charts.progress = new Chart(prCtx.getContext('2d'), {
                     type: 'doughnut',
-                    data: { labels: ['Complete', 'Remaining'], datasets: [{ data: [0, 100], backgroundColor: ['#198754', '#e9ecef'] }] },
-                    options: { responsive: true, maintainAspectRatio: false, cutout: '70%' }
+                    data: { labels: ['Complete', 'Remaining'], datasets: [{ data: [0, 100], backgroundColor: ['#22c55e', '#e9ecef'] }] },
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '72%' }
                 });
             }
 
@@ -1865,13 +1954,18 @@
 
         function updateCharts(latest, last7) {
             ensureCharts();
-            const labels = last7.map(r => formatLocalTime(r.timestamp));
+            const timeLabels = last7.map(r => formatLocalTime(r.timestamp));
+            const dayLabels = last7.map(r => {
+                const d = new Date(r.timestamp);
+                if (!isNaN(d)) return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                return '';
+            });
             const pulse = last7.map(r => r.pulse ?? null);
             const move = last7.map(r => getMovementForChart(r.movementMagnitude));
             const sleep = last7.map(r => r.sleepQualityScore ?? null);
 
             if (charts.realtime) {
-                charts.realtime.data.labels = labels.length ? labels : [''];
+                charts.realtime.data.labels = timeLabels.length ? timeLabels : [''];
                 if (currentRealtimeMetric === 'all') {
                     charts.realtime.data.datasets = [
                         { label: 'Pulse', data: pulse.length ? pulse : [null], borderColor: '#0d6efd', tension: 0.3 },
@@ -1892,27 +1986,30 @@
                 charts.realtime.update();
             }
             if (charts.movement7) {
-                charts.movement7.data.labels = labels.length ? labels : [''];
+                charts.movement7.data.labels = dayLabels.length ? dayLabels : [''];
                 charts.movement7.data.datasets[0].data = move.length ? move : [0];
                 charts.movement7.update();
             }
+            // Compute progress KPIs and composite score
+            const stats = computeWeekStats(last7);
+            const progressVal = computeProgressScore(stats);
+            updateProgressKpis(stats, progressVal);
             if (charts.progress) {
-                const progressVal = Math.max(0, Math.min(100, Math.round((sleep.filter(v => (v ?? 0) > 0).length / Math.max(1, sleep.length)) * 100)));
                 charts.progress.data.datasets[0].data = [progressVal, 100 - progressVal];
                 charts.progress.update();
             }
             if (charts.pulseDetail) {
-                charts.pulseDetail.data.labels = labels.length ? labels : [''];
+                charts.pulseDetail.data.labels = dayLabels.length ? dayLabels : [''];
                 charts.pulseDetail.data.datasets[0].data = pulse.length ? pulse : [null];
                 charts.pulseDetail.update();
             }
             if (charts.movementDetail) {
-                charts.movementDetail.data.labels = labels.length ? labels : [''];
+                charts.movementDetail.data.labels = dayLabels.length ? dayLabels : [''];
                 charts.movementDetail.data.datasets[0].data = move.length ? move : [null];
                 charts.movementDetail.update();
             }
             if (charts.sleepDetail) {
-                charts.sleepDetail.data.labels = labels.length ? labels : [''];
+                charts.sleepDetail.data.labels = dayLabels.length ? dayLabels : [''];
                 charts.sleepDetail.data.datasets[0].data = sleep.length ? sleep : [null];
                 charts.sleepDetail.update();
             }
@@ -2053,6 +2150,53 @@
                 }
             } finally {
                 if (showSpinner) hideLoading();
+            }
+        }
+
+        // Progress Summary helpers
+        function computeWeekStats(last7) {
+            const valid = (arr) => arr.filter(v => v !== null && v !== undefined && v !== '' && !Number.isNaN(Number(v)));
+            const adherenceDays = last7.filter(r => r && (r.pulse ?? r.movementMagnitude ?? r.sleepQualityScore) !== undefined).length;
+            const mv = valid(last7.map(r => getMovementForChart(r.movementMagnitude)));
+            const pl = valid(last7.map(r => r.pulse));
+            const sl = valid(last7.map(r => r.sleepQualityScore));
+            const avg = (arr) => arr.length ? (arr.reduce((a,b)=>a+Number(b),0) / arr.length) : 0;
+            return {
+                days: last7.length,
+                adherenceDays,
+                adherencePercent: Math.round((adherenceDays / Math.max(1, last7.length)) * 100),
+                avgMovement: Number(avg(mv).toFixed(1)),
+                avgPulse: Number(avg(pl).toFixed(1)),
+                avgSleep: Number(avg(sl).toFixed(1))
+            };
+        }
+        function computeProgressScore(stats) {
+            // Normalize to 0-100. Adjust weights to taste.
+            const clamp = (v) => Math.max(0, Math.min(100, v));
+            const movementScore = clamp(((stats.avgMovement - 80) / 80) * 100); // 80..160 -> 0..100
+            const pulseIdeal = 80; // bpm target midpoint
+            const pulseScore = clamp(100 - (Math.abs((stats.avgPulse || pulseIdeal) - pulseIdeal) / 80) * 100);
+            const sleepScore = clamp(stats.avgSleep || 0);
+            const adherenceScore = clamp(stats.adherencePercent);
+            // weights
+            const w = { movement: 0.35, pulse: 0.25, sleep: 0.30, adherence: 0.10 };
+            const score = movementScore*w.movement + pulseScore*w.pulse + sleepScore*w.sleep + adherenceScore*w.adherence;
+            return Math.round(score);
+        }
+        function updateProgressKpis(stats, progressVal) {
+            const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+            setText('kpiAdherencePercent', (Number.isFinite(stats.adherencePercent) ? stats.adherencePercent : 0) + '%');
+            setText('kpiAdherenceCaption', `Adherence (${stats.adherenceDays}/${stats.days} days)`);
+            setText('kpiAvgMovement', Number.isFinite(stats.avgMovement) ? stats.avgMovement : '--');
+            setText('kpiAvgMovementCaption', 'Avg Movement');
+            setText('kpiAvgPulse', Number.isFinite(stats.avgPulse) ? stats.avgPulse : '--');
+            setText('kpiAvgPulseCaption', 'Avg Pulse');
+            setText('kpiAvgSleep', Number.isFinite(stats.avgSleep) ? stats.avgSleep : '--');
+            setText('kpiAvgSleepCaption', 'Avg Sleep Score');
+            const chip = document.getElementById('progressTrendChip');
+            if (chip) {
+                chip.style.display = '';
+                chip.textContent = `${progressVal}%`;
             }
         }
 
