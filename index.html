@@ -2164,7 +2164,7 @@
             const doctorIdToSend = getDoctorId() || 'PUBLIC';
             const tasks = unique.map(async (pid) => {
                 try {
-                    const res = await apiCall('', 'GET', { action: 'getPatientData', doctorId: doctorIdToSend, patientId: pid });
+                    const res = await apiCall('', 'GET', { action: 'getPatientData', doctorId: doctorIdToSend, patientId: pid, limit: 7 });
                     patientDataCache[pid] = res;
                 } catch {}
             });
@@ -2192,7 +2192,7 @@
                 }
 
                 const doctorIdToSend = getDoctorId() || 'PUBLIC';
-                const result = await apiCall('', 'GET', { action: 'getPatientData', doctorId: doctorIdToSend, patientId });
+                const result = await apiCall('', 'GET', { action: 'getPatientData', doctorId: doctorIdToSend, patientId, limit: 7 });
                 patientDataCache[patientId] = result;
                 patientData = result;
                 renderPatientData();
