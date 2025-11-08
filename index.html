@@ -1664,7 +1664,7 @@
             if (value === null || value === undefined || value === '') return '--';
             const num = Number(value);
             if (isNaN(num)) return '--';
-            return (num + 100).toFixed(2);
+            return num.toFixed(3);
         }
 
         function formatSleepScore(value) {
@@ -1678,7 +1678,7 @@
             if (value === null || value === undefined) return null;
             const num = Number(value);
             if (isNaN(num)) return null;
-            return num + 100;
+            return num; // use raw, not offset
         }
         // For bar charts where raw differences are too small, scale to 0..100 per 7-day window
         function getMovementScaledSeries(last7) {
@@ -1693,6 +1693,16 @@
             const span = (max - min);
             if (span < 1e-9) return raw.map(v => (v === null ? 0 : 50));
             return raw.map(v => (v === null ? 0 : ((v - min) / span) * 100));
+        }
+        // Dynamic axis range for raw movement
+        function computeAxisRange(vals, padRatio = 0.1) {
+            const nums = (vals || []).map(v => Number(v)).filter(v => Number.isFinite(v));
+            if (!nums.length) return { min: 0, max: 1 };
+            const min = Math.min(...nums);
+            const max = Math.max(...nums);
+            const span = Math.max(1e-6, max - min);
+            const pad = span * padRatio;
+            return { min: min - pad, max: max + pad };
         }
 
         function stopPatientAutoRefresh() {
@@ -1902,8 +1912,17 @@
             if (rtCtx && !charts.realtime) {
                 charts.realtime = new Chart(rtCtx.getContext('2d'), {
                     type: 'line',
-                    data: { labels: [], datasets: [{ label: 'Pulse', data: [], borderColor: '#0d6efd', tension: 0.3 }] },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: true }, y: { beginAtZero: true } } }
+                    data: { labels: [], datasets: [] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { display: true },
+                            y: { beginAtZero: true },
+                            y1: { beginAtZero: false, position: 'right', grid: { drawOnChartArea: false } }
+                        },
+                        plugins: { legend: { display: true } }
+                    }
                 });
             }
 
@@ -1911,24 +1930,12 @@
             if (mvCtx && !charts.movement7) {
                 charts.movement7 = new Chart(mvCtx.getContext('2d'), {
                     type: 'bar',
-                    data: { labels: [], datasets: [{ label: 'Movement (scaled)', data: [], rawValues: [], backgroundColor: '#0dcaf0' }] },
+                    data: { labels: [], datasets: [{ label: 'Movement', data: [], backgroundColor: '#0dcaf0' }] },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true, min: 0, max: 100, grid: { color: 'rgba(0,0,0,0.06)' } } },
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: function(ctx) {
-                                        const raw = ctx.dataset.rawValues && ctx.dataset.rawValues[ctx.dataIndex];
-                                        const rawText = (raw === null || raw === undefined || Number.isNaN(Number(raw))) ? '--' : Number(raw).toFixed(3);
-                                        const scaled = (ctx.parsed && Number.isFinite(ctx.parsed.y)) ? Math.round(ctx.parsed.y) : 0;
-                                        return `Movement: ${rawText} (scaled ${scaled})`;
-                                    }
-                                }
-                            },
-                            legend: { display: false }
-                        }
+                        scales: { y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,0.06)' } } },
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `Movement: ${Number(ctx.raw).toFixed(3)}` } } }
                     }
                 });
             }
@@ -1958,7 +1965,7 @@
                 charts.movementDetail = new Chart(mdCtx.getContext('2d'), {
                     type: 'line',
                     data: { labels: [], datasets: [{ label: 'Movement', data: [], borderColor: '#0dcaf0', tension: 0.3 }] },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,0.06)' } } }, plugins: { tooltip: { callbacks: { label: (ctx) => `Movement: ${Number(ctx.raw).toFixed(3)}` } } } }
                 });
             }
 
@@ -1992,35 +1999,46 @@
                 return '';
             });
             const pulse = last7.map(r => r.pulse ?? null);
-            const move = last7.map(r => getMovementForChart(r.movementMagnitude));
+            const movementRaw = last7.map(r => getMovementForChart(r.movementMagnitude));
             const sleep = last7.map(r => r.sleepQualityScore ?? null);
 
             if (charts.realtime) {
                 charts.realtime.data.labels = timeLabels.length ? timeLabels : [''];
                 if (currentRealtimeMetric === 'all') {
                     charts.realtime.data.datasets = [
-                        { label: 'Pulse', data: pulse.length ? pulse : [null], borderColor: '#0d6efd', tension: 0.3 },
-                        { label: 'Movement', data: move.length ? move : [null], borderColor: '#0dcaf0', tension: 0.3 },
-                        { label: 'Sleep Score', data: sleep.length ? sleep : [null], borderColor: '#ffc107', tension: 0.3 }
+                        { label: 'Pulse', data: pulse.length ? pulse : [null], borderColor: '#0d6efd', tension: 0.3, yAxisID: 'y' },
+                        { label: 'Movement', data: movementRaw.length ? movementRaw : [null], borderColor: '#0dcaf0', tension: 0.3, yAxisID: 'y1' },
+                        { label: 'Sleep Score', data: sleep.length ? sleep : [null], borderColor: '#ffc107', tension: 0.3, yAxisID: 'y' }
                     ];
                 } else {
-                    const metricMap = {
-                        pulse: { data: pulse.length ? pulse : [null], label: 'Pulse', color: '#0d6efd' },
-                        movement: { data: move.length ? move : [null], label: 'Movement', color: '#0dcaf0' },
-                        sleep: { data: sleep.length ? sleep : [null], label: 'Sleep Score', color: '#ffc107' }
-                    };
-                    const cfg = metricMap[currentRealtimeMetric] || metricMap.pulse;
-                    charts.realtime.data.datasets = [
-                        { label: cfg.label, data: cfg.data, borderColor: cfg.color, tension: 0.3 }
-                    ];
+                    if (currentRealtimeMetric === 'movement') {
+                        charts.realtime.data.datasets = [
+                            { label: 'Movement', data: movementRaw.length ? movementRaw : [null], borderColor: '#0dcaf0', tension: 0.3, yAxisID: 'y1' }
+                        ];
+                    } else if (currentRealtimeMetric === 'sleep') {
+                        charts.realtime.data.datasets = [
+                            { label: 'Sleep Score', data: sleep.length ? sleep : [null], borderColor: '#ffc107', tension: 0.3, yAxisID: 'y' }
+                        ];
+                    } else {
+                        charts.realtime.data.datasets = [
+                            { label: 'Pulse', data: pulse.length ? pulse : [null], borderColor: '#0d6efd', tension: 0.3, yAxisID: 'y' }
+                        ];
+                    }
+                }
+                // dynamic y1 axis range for movement
+                if (charts.realtime.options && charts.realtime.options.scales && charts.realtime.options.scales.y1) {
+                    const r = computeAxisRange(movementRaw);
+                    charts.realtime.options.scales.y1.min = r.min;
+                    charts.realtime.options.scales.y1.max = r.max;
                 }
                 charts.realtime.update();
             }
             if (charts.movement7) {
                 charts.movement7.data.labels = dayLabels.length ? dayLabels : [''];
-                const scaled = getMovementScaledSeries(last7);
-                charts.movement7.data.datasets[0].data = scaled.length ? scaled : [0];
-                charts.movement7.data.datasets[0].rawValues = last7.map(r => r.movementMagnitude ?? null);
+                charts.movement7.data.datasets[0].data = movementRaw.length ? movementRaw : [0];
+                const r7 = computeAxisRange(movementRaw);
+                charts.movement7.options.scales.y.min = r7.min;
+                charts.movement7.options.scales.y.max = r7.max;
                 charts.movement7.update();
             }
             // Compute progress KPIs and composite score
@@ -2038,7 +2056,10 @@
             }
             if (charts.movementDetail) {
                 charts.movementDetail.data.labels = dayLabels.length ? dayLabels : [''];
-                charts.movementDetail.data.datasets[0].data = move.length ? move : [null];
+                charts.movementDetail.data.datasets[0].data = movementRaw.length ? movementRaw : [null];
+                const rDetail = computeAxisRange(movementRaw);
+                charts.movementDetail.options.scales.y.min = rDetail.min;
+                charts.movementDetail.options.scales.y.max = rDetail.max;
                 charts.movementDetail.update();
             }
             if (charts.sleepDetail) {
@@ -2190,7 +2211,7 @@
         function computeWeekStats(last7) {
             const valid = (arr) => arr.filter(v => v !== null && v !== undefined && v !== '' && !Number.isNaN(Number(v)));
             const adherenceDays = last7.filter(r => r && (r.pulse ?? r.movementMagnitude ?? r.sleepQualityScore) !== undefined).length;
-            const mv = valid(last7.map(r => getMovementForChart(r.movementMagnitude)));
+            const mv = valid(last7.map(r => (r && r.movementMagnitude !== undefined ? Number(r.movementMagnitude) : null)));
             const pl = valid(last7.map(r => r.pulse));
             const sl = valid(last7.map(r => r.sleepQualityScore));
             const avg = (arr) => arr.length ? (arr.reduce((a,b)=>a+Number(b),0) / arr.length) : 0;
