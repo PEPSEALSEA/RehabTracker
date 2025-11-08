@@ -2674,7 +2674,8 @@
                 if (!message || !message.trim() || !currentReceiverId) return false;
                 const senderId = getChatSenderId();
                 const senderType = 'doctor';
-                const receiverType = currentReceiverType || 'doctor';
+                // Enforce doctor <-> patient chat direction
+                const receiverType = 'patient';
                 try {
                     const result = await apiCall('', 'GET', {
                         action: 'sendChatMessage',
@@ -2735,28 +2736,30 @@
 
             async function loadAndRenderConversations() {
                 const conversations = await loadConversations();
+                // Only allow doctor <-> patient conversations (filter out doctor<->doctor)
+                const patientConversations = (conversations || []).filter(c => (c.otherType || 'patient') === 'patient');
                 // Detect new unread messages to show system notifications
                 try {
-                    conversations.forEach(conv => {
+                    patientConversations.forEach(conv => {
                         const prev = lastConversationsSnapshot[conv.otherId] || { unreadCount: 0, lastMessageTime: null };
                         const unreadNow = conv.unreadCount || 0;
                         const unreadPrev = prev.unreadCount || 0;
                         if (unreadNow > unreadPrev) {
                             const name = conv.otherName || conv.otherId;
                             const preview = conv.lastMessage || '';
-                            showNotification(`New message from ${escapeHtml(name)}${conv.otherType === 'patient' ? ' (Patient)' : ''}: ${escapeHtml(preview)}`, 'info');
+                            showNotification(`New message from ${escapeHtml(name)} (Patient): ${escapeHtml(preview)}`, 'info');
                         }
                     });
                 } catch (_) { /* best-effort notifications */ }
                 // Update snapshot
                 lastConversationsSnapshot = {};
-                conversations.forEach(conv => {
+                patientConversations.forEach(conv => {
                     lastConversationsSnapshot[conv.otherId] = {
                         unreadCount: conv.unreadCount || 0,
                         lastMessageTime: conv.lastMessageTime || null
                     };
                 });
-                renderConversations(conversations);
+                renderConversations(patientConversations);
             }
 
             function updateChatNotification() {
