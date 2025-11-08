@@ -1662,27 +1662,14 @@
                     url.searchParams.append(key, typeof val === 'object' ? JSON.stringify(val) : String(val));
                 });
             }
-            // Prefer fetch with JSON; fallback to JSONP if CORS or non-JSON response
             try {
-                const res = await fetch(url.toString(), { method: 'GET', headers: { 'Accept': 'application/json' }, cache: 'no-store' });
-                const text = await res.text();
-                const trimmed = (text || '').trim();
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                if (trimmed.startsWith('<')) throw new Error('Non-JSON response');
-                let json;
-                try { json = JSON.parse(trimmed); } catch (e) { throw new Error('Invalid JSON'); }
-                if (json && json.status === 'error') throw new Error(json.message || 'Backend error');
-                return json;
-            } catch (fetchErr) {
-                try {
-                    const result = await jsonp(url);
-                    if (result.status === 'error') throw new Error(result.message);
-                    return result;
-                } catch (error) {
-                    console.error('API error:', { url: url.toString(), error: error || fetchErr });
-                    showNotification('Backend request failed: ' + ((error && error.message) || (fetchErr && fetchErr.message) || 'Unknown error'), 'danger');
-                    throw (error || fetchErr);
-                }
+                const result = await jsonp(url);
+                if (result.status === 'error') throw new Error(result.message);
+                return result;
+            } catch (error) {
+                console.error('API error:', { url: url.toString(), error });
+                showNotification('Backend request failed: ' + (error && error.message ? error.message : 'Unknown error'), 'danger');
+                throw error;
             }
         }
 
