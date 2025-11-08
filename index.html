@@ -1680,6 +1680,20 @@
             if (isNaN(num)) return null;
             return num + 100;
         }
+        // For bar charts where raw differences are too small, scale to 0..100 per 7-day window
+        function getMovementScaledSeries(last7) {
+            const raw = last7.map(r => {
+                const v = (r && r.movementMagnitude !== undefined) ? Number(r.movementMagnitude) : null;
+                return Number.isFinite(v) ? v : null;
+            });
+            const valid = raw.filter(v => v !== null);
+            if (!valid.length) return raw.map(_ => 0);
+            const min = Math.min(...valid);
+            const max = Math.max(...valid);
+            const span = (max - min);
+            if (span < 1e-9) return raw.map(v => (v === null ? 0 : 50));
+            return raw.map(v => (v === null ? 0 : ((v - min) / span) * 100));
+        }
 
         function stopPatientAutoRefresh() {
             if (patientRefreshTimer) {
@@ -1859,19 +1873,23 @@
         // Center text plugin for progress doughnut
         const centerText = {
             id: 'centerText',
-            afterDraw(chart, args, opts) {
+            afterDatasetsDraw(chart, args, opts) {
                 if (chart.config.type !== 'doughnut') return;
                 const canvasId = chart.canvas && chart.canvas.id;
                 if (canvasId !== 'progressChart') return;
-                const {ctx, chartArea: { width, height }} = chart;
-                const total = chart.data.datasets[0].data[0] || 0;
+                const { ctx, chartArea } = chart;
+                const ds = chart.data && chart.data.datasets && chart.data.datasets[0];
+                if (!ds) return;
+                const total = Number(ds.data && ds.data[0]) || 0;
                 const label = Math.round(total) + '%';
+                const cx = (chart.getDatasetMeta(0).data && chart.getDatasetMeta(0).data[0]) ? chart.getDatasetMeta(0).data[0].x : (chartArea.left + chartArea.right) / 2;
+                const cy = (chart.getDatasetMeta(0).data && chart.getDatasetMeta(0).data[0]) ? chart.getDatasetMeta(0).data[0].y : (chartArea.top + chartArea.bottom) / 2;
                 ctx.save();
                 ctx.font = '700 28px Segoe UI, system-ui, sans-serif';
                 ctx.fillStyle = '#212529';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(label, chart.getDatasetMeta(0).data[0].x, chart.getDatasetMeta(0).data[0].y);
+                ctx.fillText(label, cx, cy);
                 ctx.restore();
             }
         };
@@ -1893,23 +1911,36 @@
             if (mvCtx && !charts.movement7) {
                 charts.movement7 = new Chart(mvCtx.getContext('2d'), {
                     type: 'bar',
-                    data: { labels: [], datasets: [{ label: 'Movement', data: [], backgroundColor: '#0dcaf0' }] },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                    data: { labels: [], datasets: [{ label: 'Movement (scaled)', data: [], rawValues: [], backgroundColor: '#0dcaf0' }] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true, min: 0, max: 100, grid: { color: 'rgba(0,0,0,0.06)' } } },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        const raw = ctx.dataset.rawValues && ctx.dataset.rawValues[ctx.dataIndex];
+                                        const rawText = (raw === null || raw === undefined || Number.isNaN(Number(raw))) ? '--' : Number(raw).toFixed(3);
+                                        const scaled = (ctx.parsed && Number.isFinite(ctx.parsed.y)) ? Math.round(ctx.parsed.y) : 0;
+                                        return `Movement: ${rawText} (scaled ${scaled})`;
+                                    }
+                                }
+                            },
+                            legend: { display: false }
+                        }
+                    }
                 });
             }
 
             const prCtx = document.getElementById('progressChart');
             if (prCtx && !charts.progress) {
-                // Register center text plugin once
-                if (typeof Chart !== 'undefined' && Chart.registry && !Chart.registry.plugins.get('centerText')) {
-                    Chart.register(centerText);
-                } else if (typeof Chart !== 'undefined') {
-                    try { Chart.register(centerText); } catch(e) { /* ignore */ }
-                }
+                // Register center text plugin once, ignoring duplicate registration errors
+                try { if (typeof Chart !== 'undefined') { Chart.register(centerText); } } catch (e) {}
                 charts.progress = new Chart(prCtx.getContext('2d'), {
                     type: 'doughnut',
                     data: { labels: ['Complete', 'Remaining'], datasets: [{ data: [0, 100], backgroundColor: ['#22c55e', '#e9ecef'] }] },
-                    options: { responsive: true, maintainAspectRatio: false, cutout: '72%' }
+                    options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false } } }
                 });
             }
 
@@ -1987,7 +2018,9 @@
             }
             if (charts.movement7) {
                 charts.movement7.data.labels = dayLabels.length ? dayLabels : [''];
-                charts.movement7.data.datasets[0].data = move.length ? move : [0];
+                const scaled = getMovementScaledSeries(last7);
+                charts.movement7.data.datasets[0].data = scaled.length ? scaled : [0];
+                charts.movement7.data.datasets[0].rawValues = last7.map(r => r.movementMagnitude ?? null);
                 charts.movement7.update();
             }
             // Compute progress KPIs and composite score
