@@ -1633,7 +1633,7 @@
         let patients = [];
         let currentDoctorId = '';
         let currentDoctorName = '';
-        let patientRefreshToken = 0;
+        let patientRefreshTimer = null;
 
         const userTimeZone = (() => {
             try {
@@ -1696,36 +1696,22 @@
         }
 
         function stopPatientAutoRefresh() {
-            // Increment token to cancel any running loop
-            patientRefreshToken++;
+            if (patientRefreshTimer) {
+                clearInterval(patientRefreshTimer);
+                patientRefreshTimer = null;
+            }
         }
 
-        function isRealtimeActive() {
-            const tabBtn = document.getElementById('realtime-tab');
-            const tabPane = document.getElementById('realtime');
-            return !!((tabBtn && tabBtn.classList.contains('active')) || (tabPane && tabPane.classList.contains('show')));
-        }
-
-        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-        function startPatientAutoRefresh(patientId, delayMs = 0) {
+        function startPatientAutoRefresh(patientId, intervalMs = 15000) {
             stopPatientAutoRefresh();
             if (!patientId) return;
-            const myToken = ++patientRefreshToken;
-            (async function loop() {
-                // Run until token changes or tab/patient invalid
-                while (myToken === patientRefreshToken && patientId && isRealtimeActive()) {
-                    try {
-                        await loadPatientData(patientId, { showSpinner: false, forceRefresh: true, silent: true });
-                    } catch (err) {
-                        console.warn('Auto-refresh failed', err);
-                        // brief pause on error to avoid hammering
-                        await sleep(2000);
-                    }
-                    if (myToken !== patientRefreshToken) break;
-                    if (delayMs > 0) await sleep(delayMs);
+            patientRefreshTimer = setInterval(async () => {
+                try {
+                    await loadPatientData(patientId, { showSpinner: false, forceRefresh: true, silent: true });
+                } catch (err) {
+                    console.warn('Auto-refresh failed', err);
                 }
-            })();
+            }, Math.max(3000, intervalMs));
         }
 
         // Utility Functions
@@ -3365,20 +3351,6 @@
             }
         }
 
-        // Start/stop realtime loop on tab switches
-        document.addEventListener('DOMContentLoaded', () => {
-            const tabs = document.getElementById('dashboardTabs');
-            if (tabs) {
-                tabs.addEventListener('shown.bs.tab', (e) => {
-                    const target = e && e.target && e.target.getAttribute('data-bs-target');
-                    if (target === '#realtime') {
-                        if (selectedPatientId) startPatientAutoRefresh(selectedPatientId, 0);
-                    } else {
-                        stopPatientAutoRefresh();
-                    }
-                });
-            }
-        });
     </script>
     <script>
         window.exportReport = async function exportReport() {
