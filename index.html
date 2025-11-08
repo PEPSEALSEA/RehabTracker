@@ -2447,6 +2447,8 @@
             let lastConversationsSnapshot = {};
             // In-memory cache of currently open chat messages (for incremental append)
             let currentChatMessages = [];
+            // Fast dedupe set to prevent duplicate bubbles when polling/optimistic updates overlap
+            let currentChatMessageKeys = new Set();
 
             function formatChatTime(timestamp) {
                 if (!timestamp) return '';
@@ -2605,6 +2607,7 @@
                 if (messages.length === 0) {
                     container.innerHTML = `<div class="text-center text-muted"><p>No messages yet. Start the conversation with ${escapeHtml(receiverName)}!</p></div>`;
                     currentChatMessages = [];
+                    currentChatMessageKeys = new Set();
                     lastChatTimestamp = null;
                     lastServerChatTimestamp = null;
                     return;
@@ -2615,6 +2618,8 @@
                 container.innerHTML = html;
                 container.scrollTop = container.scrollHeight;
                 currentChatMessages = messages.slice();
+                // rebuild dedupe keys based on server messages
+                currentChatMessageKeys = new Set(messages.map(makeMsgKey));
                 if (messages.length > 0) {
                     lastChatTimestamp = messages[messages.length - 1].timestamp;
                     lastServerChatTimestamp = messages[messages.length - 1].timestamp;
@@ -2647,6 +2652,11 @@
                 const currentSenderId = getChatSenderId();
 
                 newMessages.forEach(msg => {
+                    const key = makeMsgKey(msg);
+                    if (currentChatMessageKeys.has(key)) {
+                        // already rendered
+                        return;
+                    }
                     // If there is a pending (optimistic) bubble matching same text from current user, remove it
                     if ((msg.senderId || msg.sender) === currentSenderId) {
                         const pending = container.querySelector('.chat-message.sent.pending[data-pending="1"]');
@@ -2660,8 +2670,11 @@
                     const html = createMessageBubbleHTML(msg, receiverName, currentSenderId);
                     container.insertAdjacentHTML('beforeend', html);
                     currentChatMessages.push(msg);
+                    currentChatMessageKeys.add(key);
                     lastChatTimestamp = msg.timestamp || lastChatTimestamp;
-                    lastServerChatTimestamp = msg.timestamp || lastServerChatTimestamp;
+                    if (!msg._pending && msg.timestamp) {
+                        lastServerChatTimestamp = msg.timestamp;
+                    }
                 });
                 container.scrollTop = container.scrollHeight;
             }
@@ -2679,6 +2692,9 @@
                 container.innerHTML = `
                     <div class="text-center text-muted">
                         <div class="spinner"></div>
+                        <p class="mt-2">${msg}</p>
+                    </div>`;
+            }
                         <p class="mt-2">${msg}</p>
                     </div>`;
             }
@@ -2700,15 +2716,11 @@
                 lastChatTimestamp = null;
                 lastServerChatTimestamp = null;
                 currentChatMessages = [];
+                currentChatMessageKeys = new Set();
                 showChatLoading('Loading messages...');
                 
                 const messages = await loadChatMessages(receiverId, 20);
                 renderChatMessages(messages, receiverName);
-                // Attempt to mark messages as read server-side (if supported)
-                try {
-                    const senderId = getChatSenderId();
-                    await apiCall('', 'GET', { action: 'markChatRead', senderId: senderId, otherId: receiverId });
-                } catch (_) { /* optional endpoint may not exist */ }
                 // Refresh conversations/unread counts after opening
                 await loadAndRenderConversations();
                 startChatAutoRefresh();
@@ -2884,7 +2896,6 @@
                     // Make input readOnly (keep focus and caret visible in box)
                     input.readOnly = true;
                     input.focus();
-                    // Keep caret at end
                     try { input.setSelectionRange(input.value.length, input.value.length); } catch {}
                     
                     const success = await sendChatMessage(message);
@@ -2911,6 +2922,11 @@
                     sendBtn.disabled = false;
                     sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
                     // Re-enable input but keep focus and caret at start
+                    input.readOnly = false;
+                    input.focus();
+                    try { input.setSelectionRange(0, 0); } catch {}
+                });
+            }
                     input.readOnly = false;
                     input.focus();
                     try { input.setSelectionRange(0, 0); } catch {}
