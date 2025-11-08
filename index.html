@@ -2487,7 +2487,7 @@
                 if (!container) return;
                 
                 if (conversations.length === 0) {
-                    container.innerHTML = '<div class="text-center text-muted p-4"><p>No doctors found who share patients with you.</p></div>';
+                    container.innerHTML = '<div class="text-center text-muted p-4"><p>No conversations available.</p></div>';
                     return;
                 }
 
@@ -2496,18 +2496,21 @@
 
                 const conversationsWithMessages = conversations.filter(c => c.hasMessages);
                 const conversationsWithoutMessages = conversations.filter(c => !c.hasMessages);
+                const doctorsWithoutMessages = conversationsWithoutMessages.filter(c => c.otherType === 'doctor');
+                const patientsWithoutMessages = conversationsWithoutMessages.filter(c => c.otherType === 'patient');
 
                 let html = '';
                 
                 if (conversationsWithMessages.length > 0) {
                     html += conversationsWithMessages.map(conv => {
-                        const initials = (conv.doctorName || conv.doctorId).substring(0, 2).toUpperCase();
+                        const initials = (conv.otherName || conv.otherId).substring(0, 2).toUpperCase();
+                        const badge = conv.otherType === 'patient' ? '<span class="badge bg-info ms-2" style="font-size: 0.7rem;">Patient</span>' : '';
                         return `
-                            <div class="conversation-item" data-receiver-id="${conv.doctorId}">
+                            <div class="conversation-item" data-receiver-id="${conv.otherId}" data-receiver-type="${conv.otherType || 'doctor'}">
                                 <div class="conversation-avatar">${initials}</div>
                                 <div class="conversation-content">
                                     <div class="conversation-header">
-                                        <span class="conversation-name">${escapeHtml(conv.doctorName || conv.doctorId)}</span>
+                                        <span class="conversation-name">${escapeHtml(conv.otherName || conv.otherId)}${badge}</span>
                                         <span class="conversation-time">${formatChatTime(conv.lastMessageTime)}</span>
                                     </div>
                                     <div class="conversation-preview">${escapeHtml(conv.lastMessage || '')}</div>
@@ -2518,18 +2521,39 @@
                     }).join('');
                 }
 
-                if (conversationsWithoutMessages.length > 0) {
+                if (doctorsWithoutMessages.length > 0) {
                     if (conversationsWithMessages.length > 0) {
                         html += '<div style="padding: 10px 15px; background-color: #f8f9fa; border-top: 2px solid #e0e0e0; border-bottom: 2px solid #e0e0e0; font-size: 0.85rem; font-weight: 600; color: var(--secondary-color);">Available Doctors</div>';
                     }
-                    html += conversationsWithoutMessages.map(conv => {
-                        const initials = (conv.doctorName || conv.doctorId).substring(0, 2).toUpperCase();
+                    html += doctorsWithoutMessages.map(conv => {
+                        const initials = (conv.otherName || conv.otherId).substring(0, 2).toUpperCase();
                         return `
-                            <div class="conversation-item" data-receiver-id="${conv.doctorId}">
+                            <div class="conversation-item" data-receiver-id="${conv.otherId}" data-receiver-type="doctor">
                                 <div class="conversation-avatar" style="background-color: #6c757d;">${initials}</div>
                                 <div class="conversation-content">
                                     <div class="conversation-header">
-                                        <span class="conversation-name">${escapeHtml(conv.doctorName || conv.doctorId)}</span>
+                                        <span class="conversation-name">${escapeHtml(conv.otherName || conv.otherId)}</span>
+                                        <span class="conversation-time"></span>
+                                    </div>
+                                    <div class="conversation-preview" style="font-style: italic; color: var(--secondary-color);">Tap to start conversation</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                if (patientsWithoutMessages.length > 0) {
+                    if (conversationsWithMessages.length > 0 || doctorsWithoutMessages.length > 0) {
+                        html += '<div style="padding: 10px 15px; background-color: #e3f2fd; border-top: 2px solid #90caf9; border-bottom: 2px solid #90caf9; font-size: 0.85rem; font-weight: 600; color: #1976d2;">Your Patients</div>';
+                    }
+                    html += patientsWithoutMessages.map(conv => {
+                        const initials = (conv.otherName || conv.otherId).substring(0, 2).toUpperCase();
+                        return `
+                            <div class="conversation-item" data-receiver-id="${conv.otherId}" data-receiver-type="patient">
+                                <div class="conversation-avatar" style="background-color: #42a5f5;">${initials}</div>
+                                <div class="conversation-content">
+                                    <div class="conversation-header">
+                                        <span class="conversation-name">${escapeHtml(conv.otherName || conv.otherId)} <span class="badge bg-info" style="font-size: 0.7rem;">Patient</span></span>
                                         <span class="conversation-time"></span>
                                     </div>
                                     <div class="conversation-preview" style="font-style: italic; color: var(--secondary-color);">Tap to start conversation</div>
@@ -2544,17 +2568,18 @@
                 container.querySelectorAll('.conversation-item').forEach(item => {
                     item.addEventListener('click', () => {
                         const receiverId = item.dataset.receiverId;
-                        const receiverName = item.querySelector('.conversation-name').textContent;
-                        openConversation(receiverId, receiverName);
+                        const receiverType = item.dataset.receiverType || 'doctor';
+                        const receiverName = item.querySelector('.conversation-name').textContent.replace(/\s*\(Patient\)\s*/, '').trim();
+                        openConversation(receiverId, receiverName, receiverType);
                     });
                 });
             }
 
             async function loadChatMessages(receiverId, limit = 50, since = null) {
-                const doctorId = getChatSenderId();
-                if (!doctorId || !receiverId) return [];
+                const senderId = getChatSenderId();
+                if (!senderId || !receiverId) return [];
                 try {
-                    const params = { action: 'getChatMessages', doctorId: doctorId, receiverId: receiverId, limit: limit };
+                    const params = { action: 'getChatMessages', senderId: senderId, receiverId: receiverId, limit: limit };
                     if (since) params.since = since;
                     const result = await apiCall('', 'GET', params);
                     if (result.status === 'success' && result.messages) {
@@ -2578,12 +2603,17 @@
 
                 const currentSenderId = getChatSenderId();
                 container.innerHTML = messages.map(msg => {
-                    const isSent = msg.sender === currentSenderId;
+                    const isSent = (msg.senderId || msg.sender) === currentSenderId;
                     const messageClass = isSent ? 'sent' : 'received';
-                    const senderName = isSent ? (currentDoctorName || 'You') : (receiverName || msg.sender);
+                    const senderId = msg.senderId || msg.sender;
+                    const senderType = msg.senderType || 'doctor';
+                    const senderName = isSent 
+                        ? (currentDoctorName || 'You') 
+                        : (receiverName || senderId);
+                    const senderBadge = senderType === 'patient' ? ' <span class="badge bg-info" style="font-size: 0.65rem;">Patient</span>' : '';
                     return `
                         <div class="chat-message ${messageClass}">
-                            <div class="chat-message-header">${escapeHtml(senderName)}</div>
+                            <div class="chat-message-header">${escapeHtml(senderName)}${senderBadge}</div>
                             <div class="chat-message-text">${escapeHtml(msg.message)}</div>
                             <div class="chat-message-time">${formatChatTime(msg.timestamp)}</div>
                         </div>
@@ -2603,13 +2633,17 @@
                 return div.innerHTML;
             }
 
-            async function openConversation(receiverId, receiverName) {
+            let currentReceiverType = 'doctor';
+            
+            async function openConversation(receiverId, receiverName, receiverType = 'doctor') {
                 currentReceiverId = receiverId;
                 currentReceiverName = receiverName;
+                currentReceiverType = receiverType || 'doctor';
                 document.getElementById('conversationsList').style.display = 'none';
                 document.getElementById('chatMessagesView').style.display = 'flex';
                 document.getElementById('backToConversationsBtn').style.display = 'block';
-                document.getElementById('chatModalLabel').innerHTML = `<i class="fas fa-comments me-2"></i>${escapeHtml(receiverName)}`;
+                const typeBadge = receiverType === 'patient' ? ' <span class="badge bg-info" style="font-size: 0.75rem;">Patient</span>' : '';
+                document.getElementById('chatModalLabel').innerHTML = `<i class="fas fa-comments me-2"></i>${escapeHtml(receiverName)}${typeBadge}`;
                 
                 const messages = await loadChatMessages(receiverId, 100);
                 renderChatMessages(messages, receiverName);
@@ -2630,11 +2664,15 @@
             async function sendChatMessage(message) {
                 if (!message || !message.trim() || !currentReceiverId) return false;
                 const senderId = getChatSenderId();
+                const senderType = 'doctor';
+                const receiverType = currentReceiverType || 'doctor';
                 try {
                     const result = await apiCall('', 'GET', {
                         action: 'sendChatMessage',
                         sender: senderId,
+                        senderType: senderType,
                         receiver: currentReceiverId,
+                        receiverType: receiverType,
                         message: message.trim()
                     });
                     if (result.status === 'success') {
