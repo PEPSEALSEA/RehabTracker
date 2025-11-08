@@ -860,9 +860,9 @@
                         <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addExistingPatientModal" id="addExistingPatientBtn" style="display: none;">
                             <i class="fas fa-user-plus me-2"></i>Add Existing Patient
                         </button>
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPatientModal">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPatientModal">
                             <i class="fas fa-plus me-2"></i>Add New Patient
-                        </button>
+                    </button>
                     </div>
                 </div>
 
@@ -2422,7 +2422,7 @@
                             await loadPatients({ blocking: false, prefetch: true });
                             showNotification(result.message || 'Patient added successfully!', 'success');
                             updateCurrentUserDisplay();
-                        } else {
+                } else {
                             showNotification(result.message || 'Failed to add patient', 'danger');
                         }
                     } catch (error) {
@@ -3005,26 +3005,26 @@
 
                 const addCanvas = (canvasId, title) => {
                     try {
-                        const el = document.getElementById(canvasId);
+                    const el = document.getElementById(canvasId);
                         if (!el) {
                             console.warn(`Canvas element not found: ${canvasId}`);
                             return;
                         }
-                        const canvas = el instanceof HTMLCanvasElement ? el : el.querySelector('canvas');
+                    const canvas = el instanceof HTMLCanvasElement ? el : el.querySelector('canvas');
                         if (!canvas) {
                             console.warn(`Canvas not found in element: ${canvasId}`);
                             return;
                         }
-                        const img = canvas.toDataURL('image/png', 1.0);
+                    const img = canvas.toDataURL('image/png', 1.0);
                         if (!img || img === 'data:,') {
                             console.warn(`Failed to get image data from canvas: ${canvasId}`);
                             return;
                         }
-                        const maxW = pageW - margin * 2;
-                        const maxH = pageH - margin * 2 - 20;
+                    const maxW = pageW - margin * 2;
+                    const maxH = pageH - margin * 2 - 20;
                         const ratio = Math.min(maxW / canvas.width, maxH / canvas.height, 0.8);
-                        const w = Math.max(10, canvas.width * ratio);
-                        const h = Math.max(10, canvas.height * ratio);
+                    const w = Math.max(10, canvas.width * ratio);
+                    const h = Math.max(10, canvas.height * ratio);
                         if (y + 20 + h > pageH - margin) { 
                             doc.addPage(); 
                             y = margin; 
@@ -3034,8 +3034,8 @@
                             doc.text(title, margin, y); 
                             y += 16; 
                         }
-                        doc.addImage(img, 'PNG', margin, y, w, h);
-                        y += h + 12;
+                    doc.addImage(img, 'PNG', margin, y, w, h);
+                    y += h + 12;
                     } catch (err) {
                         console.warn(`Error adding canvas ${canvasId}:`, err);
                     }
