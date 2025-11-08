@@ -2438,11 +2438,15 @@
             let chatRefreshTimer = null;
             let conversationsRefreshTimer = null;
             let lastChatTimestamp = null;
+            // Tracks last server-confirmed message timestamp to use for incremental fetches
+            let lastServerChatTimestamp = null;
             let currentReceiverId = null;
             let currentReceiverName = null;
             let totalUnreadCount = 0;
             // Track previous conversations to detect new messages for notifications
             let lastConversationsSnapshot = {};
+            // In-memory cache of currently open chat messages (for incremental append)
+            let currentChatMessages = [];
 
             function formatChatTime(timestamp) {
                 if (!timestamp) return '';
@@ -2600,33 +2604,66 @@
                 
                 if (messages.length === 0) {
                     container.innerHTML = `<div class="text-center text-muted"><p>No messages yet. Start the conversation with ${escapeHtml(receiverName)}!</p></div>`;
+                    currentChatMessages = [];
+                    lastChatTimestamp = null;
+                    lastServerChatTimestamp = null;
                     return;
                 }
 
                 const currentSenderId = getChatSenderId();
-                container.innerHTML = messages.map(msg => {
-                    const isSent = (msg.senderId || msg.sender) === currentSenderId;
-                    const messageClass = isSent ? 'sent' : 'received';
-                    const senderId = msg.senderId || msg.sender;
-                    const senderType = msg.senderType || 'doctor';
-                    const senderName = isSent 
-                        ? (currentDoctorName || 'You') 
-                        : (receiverName || senderId);
-                    const senderBadge = senderType === 'patient' ? ' <span class="badge bg-info" style="font-size: 0.65rem;">Patient</span>' : '';
-                    return `
-                        <div class="chat-message ${messageClass}">
-                            <div class="chat-message-header">${escapeHtml(senderName)}${senderBadge}</div>
-                            <div class="chat-message-text">${escapeHtml(msg.message)}</div>
-                            <div class="chat-message-time">${formatChatTime(msg.timestamp)}</div>
-                        </div>
-                    `;
-                }).join('');
-                
+                const html = messages.map(msg => createMessageBubbleHTML(msg, receiverName, currentSenderId)).join('');
+                container.innerHTML = html;
                 container.scrollTop = container.scrollHeight;
-                
+                currentChatMessages = messages.slice();
                 if (messages.length > 0) {
                     lastChatTimestamp = messages[messages.length - 1].timestamp;
+                    lastServerChatTimestamp = messages[messages.length - 1].timestamp;
                 }
+            }
+
+            function createMessageBubbleHTML(msg, receiverName, currentSenderId) {
+                const isSent = (msg.senderId || msg.sender) === currentSenderId;
+                const messageClass = isSent ? 'sent' : 'received';
+                const senderId = msg.senderId || msg.sender;
+                const senderType = msg.senderType || 'doctor';
+                const senderName = isSent 
+                    ? (currentDoctorName || 'You') 
+                    : (receiverName || senderId);
+                const senderBadge = senderType === 'patient' ? ' <span class="badge bg-info" style="font-size: 0.65rem;">Patient</span>' : '';
+                const pendingClass = msg._pending ? ' pending' : '';
+                return `
+                    <div class="chat-message ${messageClass}${pendingClass}" data-sender-id="${senderId}" data-timestamp="${msg.timestamp || ''}" data-message-text="${escapeHtml(msg.message)}" ${msg._pending ? 'data-pending="1"' : ''}>
+                        <div class="chat-message-header">${escapeHtml(senderName)}${senderBadge}</div>
+                        <div class="chat-message-text">${escapeHtml(msg.message)}</div>
+                        <div class="chat-message-time">${formatChatTime(msg.timestamp || new Date().toISOString())}${msg._pending ? ' • Sending…' : ''}</div>
+                    </div>
+                `;
+            }
+
+            function appendChatMessages(newMessages, receiverName) {
+                if (!newMessages || !newMessages.length) return;
+                const container = document.getElementById('chatMessages');
+                if (!container) return;
+                const currentSenderId = getChatSenderId();
+
+                newMessages.forEach(msg => {
+                    // If there is a pending (optimistic) bubble matching same text from current user, remove it
+                    if ((msg.senderId || msg.sender) === currentSenderId) {
+                        const pending = container.querySelector('.chat-message.sent.pending[data-pending="1"]');
+                        if (pending) {
+                            const txt = pending.getAttribute('data-message-text') || '';
+                            if ((msg.message || '') === txt) {
+                                pending.remove();
+                            }
+                        }
+                    }
+                    const html = createMessageBubbleHTML(msg, receiverName, currentSenderId);
+                    container.insertAdjacentHTML('beforeend', html);
+                    currentChatMessages.push(msg);
+                    lastChatTimestamp = msg.timestamp || lastChatTimestamp;
+                    lastServerChatTimestamp = msg.timestamp || lastServerChatTimestamp;
+                });
+                container.scrollTop = container.scrollHeight;
             }
 
             function escapeHtml(text) {
@@ -2647,7 +2684,7 @@
                 const typeBadge = receiverType === 'patient' ? ' <span class="badge bg-info" style="font-size: 0.75rem;">Patient</span>' : '';
                 document.getElementById('chatModalLabel').innerHTML = `<i class="fas fa-comments me-2"></i>${escapeHtml(receiverName)}${typeBadge}`;
                 
-                const messages = await loadChatMessages(receiverId, 100);
+                const messages = await loadChatMessages(receiverId, 50);
                 renderChatMessages(messages, receiverName);
                 // Attempt to mark messages as read server-side (if supported)
                 try {
@@ -2700,10 +2737,9 @@
                 if (!currentReceiverId) return;
                 chatRefreshTimer = setInterval(async () => {
                     try {
-                        const messages = await loadChatMessages(currentReceiverId, 50, lastChatTimestamp);
-                        if (messages.length > 0) {
-                            const allMessages = await loadChatMessages(currentReceiverId, 100);
-                            renderChatMessages(allMessages, currentReceiverName);
+                        const newMessages = await loadChatMessages(currentReceiverId, 50, lastServerChatTimestamp);
+                        if (newMessages.length > 0) {
+                            appendChatMessages(newMessages, currentReceiverName);
                             // Also refresh conversation list and badges when new messages arrive
                             await loadAndRenderConversations();
                         }
@@ -2813,6 +2849,16 @@
                     const message = input.value.trim();
                     if (!message || !currentReceiverId) return;
                     
+                    // Optimistic UI: append a pending bubble immediately
+                    const pendingMsg = {
+                        senderId: getChatSenderId(),
+                        senderType: 'doctor',
+                        message: message,
+                        timestamp: new Date().toISOString(),
+                        _pending: true
+                    };
+                    appendChatMessages([pendingMsg], currentReceiverName);
+
                     const sendBtn = document.getElementById('sendChatBtn');
                     sendBtn.disabled = true;
                     sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
@@ -2820,10 +2866,21 @@
                     const success = await sendChatMessage(message);
                     if (success) {
                         input.value = '';
-                        const messages = await loadChatMessages(currentReceiverId, 100);
-                        renderChatMessages(messages, currentReceiverName);
+                        // Mark last pending bubble as confirmed (remove pending state)
+                        const container = document.getElementById('chatMessages');
+                        const lastPending = container && container.querySelector('.chat-message.sent.pending[data-pending="1"]');
+                        if (lastPending) {
+                            lastPending.classList.remove('pending');
+                            lastPending.removeAttribute('data-pending');
+                            const timeEl = lastPending.querySelector('.chat-message-time');
+                            if (timeEl) timeEl.textContent = formatChatTime(new Date().toISOString());
+                        }
                         await loadAndRenderConversations();
                     } else {
+                        // Remove pending bubble on failure
+                        const container = document.getElementById('chatMessages');
+                        const lastPending = container && container.querySelector('.chat-message.sent.pending[data-pending="1"]');
+                        if (lastPending) lastPending.remove();
                         showNotification('Failed to send message', 'danger');
                     }
                     
