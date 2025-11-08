@@ -3426,6 +3426,7 @@
                 } catch {
                     exportRows = (patientData && (patientData.recentData || patientData.lastSevenDays)) ? (patientData.recentData || patientData.lastSevenDays) : [];
                 }
+                try { showNotification(`Including ${Math.min(exportRows.length, 500)} recent rows in report`, 'info'); } catch {}
 
                 // Put Today's Activity graph first in the report
                 const addCanvas = (canvasId, title) => {
