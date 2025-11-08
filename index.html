@@ -686,6 +686,96 @@
             background: #555;
         }
 
+        .conversation-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .conversation-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .conversation-item.active {
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+
+        .conversation-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .conversation-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .conversation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .conversation-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--dark-color);
+        }
+
+        .conversation-time {
+            font-size: 0.75rem;
+            color: var(--secondary-color);
+        }
+
+        .conversation-preview {
+            font-size: 0.85rem;
+            color: var(--secondary-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .conversation-unread {
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .fab-notification {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background-color: var(--danger-color);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            border: 2px solid white;
+        }
+
         .dev-settings {
             position: fixed;
             bottom: 10px;
@@ -1321,9 +1411,12 @@
             <div class="modal-content" style="height: 600px; display: flex; flex-direction: column;">
                 <div class="modal-header">
                     <h5 class="modal-title" id="chatModalLabel">
-                        <i class="fas fa-comments me-2"></i>Chat
+                        <i class="fas fa-comments me-2"></i>Messages
                     </h5>
                     <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="backToConversationsBtn" style="display: none;">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="clearChatCacheBtn" title="Clear Cache">
                             <i class="fas fa-broom"></i>
                         </button>
@@ -1331,20 +1424,31 @@
                     </div>
                 </div>
                 <div class="modal-body flex-grow-1 d-flex flex-column p-0" style="overflow: hidden;">
-                    <div id="chatMessages" style="flex: 1; overflow-y: auto; padding: 15px; background-color: #f8f9fa;">
-                        <div class="text-center text-muted">
+                    <!-- Conversations List -->
+                    <div id="conversationsList" style="flex: 1; overflow-y: auto; background-color: white;">
+                        <div class="text-center text-muted p-4">
                             <div class="spinner"></div>
-                            <p class="mt-2">Loading messages...</p>
+                            <p class="mt-2">Loading conversations...</p>
                         </div>
                     </div>
-                    <div class="border-top p-3" style="background-color: white;">
-                        <form id="chatForm" class="d-flex gap-2">
-                            <input type="text" class="form-control" id="chatMessageInput" 
-                                placeholder="Type your message..." autocomplete="off" required>
-                            <button type="submit" class="btn btn-primary" id="sendChatBtn">
-                                <i class="fas fa-paper-plane"></i> Send
-                            </button>
-                        </form>
+                    
+                    <!-- Chat Messages View -->
+                    <div id="chatMessagesView" style="display: none; flex: 1; overflow: hidden; flex-direction: column;">
+                        <div id="chatMessages" style="flex: 1; overflow-y: auto; padding: 15px; background-color: #f8f9fa;">
+                            <div class="text-center text-muted">
+                                <div class="spinner"></div>
+                                <p class="mt-2">Loading messages...</p>
+                            </div>
+                        </div>
+                        <div class="border-top p-3" style="background-color: white;">
+                            <form id="chatForm" class="d-flex gap-2">
+                                <input type="text" class="form-control" id="chatMessageInput" 
+                                    placeholder="Type your message..." autocomplete="off" required>
+                                <button type="submit" class="btn btn-primary" id="sendChatBtn">
+                                    <i class="fas fa-paper-plane"></i> Send
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2332,7 +2436,11 @@
             }
 
             let chatRefreshTimer = null;
+            let conversationsRefreshTimer = null;
             let lastChatTimestamp = null;
+            let currentReceiverId = null;
+            let currentReceiverName = null;
+            let totalUnreadCount = 0;
 
             function formatChatTime(timestamp) {
                 if (!timestamp) return '';
@@ -2355,15 +2463,67 @@
                 }
             }
 
-            function getChatSenderName() {
-                if (currentDoctorName) return currentDoctorName;
-                if (currentDoctorId && currentDoctorId !== 'PUBLIC') return `Doctor ${currentDoctorId.substring(0, 8)}`;
-                return 'Anonymous';
+            function getChatSenderId() {
+                return currentDoctorId || 'PUBLIC';
             }
 
-            async function loadChatMessages(limit = 50, since = null) {
+            async function loadConversations() {
+                const doctorId = getChatSenderId();
+                if (!doctorId || doctorId === 'PUBLIC') return [];
                 try {
-                    const params = { action: 'getChatMessages', limit: limit };
+                    const result = await apiCall('', 'GET', { action: 'getConversations', doctorId: doctorId });
+                    if (result.status === 'success' && result.conversations) {
+                        return result.conversations;
+                    }
+                    return [];
+                } catch (error) {
+                    console.error('Error loading conversations:', error);
+                    return [];
+                }
+            }
+
+            function renderConversations(conversations) {
+                const container = document.getElementById('conversationsList');
+                if (!container) return;
+                
+                if (conversations.length === 0) {
+                    container.innerHTML = '<div class="text-center text-muted p-4"><p>No conversations yet. Start chatting with doctors who share your patients!</p></div>';
+                    return;
+                }
+
+                totalUnreadCount = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
+                updateChatNotification();
+
+                container.innerHTML = conversations.map(conv => {
+                    const initials = conv.doctorName.substring(0, 2).toUpperCase();
+                    return `
+                        <div class="conversation-item" data-receiver-id="${conv.doctorId}">
+                            <div class="conversation-avatar">${initials}</div>
+                            <div class="conversation-content">
+                                <div class="conversation-header">
+                                    <span class="conversation-name">${escapeHtml(conv.doctorName)}</span>
+                                    <span class="conversation-time">${formatChatTime(conv.lastMessageTime)}</span>
+                                </div>
+                                <div class="conversation-preview">${escapeHtml(conv.lastMessage)}</div>
+                            </div>
+                            ${conv.unreadCount > 0 ? `<div class="conversation-unread">${conv.unreadCount}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                container.querySelectorAll('.conversation-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const receiverId = item.dataset.receiverId;
+                        openConversation(receiverId, item.querySelector('.conversation-name').textContent);
+                    });
+                });
+            }
+
+            async function loadChatMessages(receiverId, limit = 50, since = null) {
+                const doctorId = getChatSenderId();
+                if (!doctorId || !receiverId) return [];
+                try {
+                    const params = { action: 'getChatMessages', doctorId: doctorId, receiverId: receiverId, limit: limit };
                     if (since) params.since = since;
                     const result = await apiCall('', 'GET', params);
                     if (result.status === 'success' && result.messages) {
@@ -2376,22 +2536,23 @@
                 }
             }
 
-            function renderChatMessages(messages) {
+            function renderChatMessages(messages, receiverName) {
                 const container = document.getElementById('chatMessages');
                 if (!container) return;
                 
                 if (messages.length === 0) {
-                    container.innerHTML = '<div class="text-center text-muted"><p>No messages yet. Start the conversation!</p></div>';
+                    container.innerHTML = `<div class="text-center text-muted"><p>No messages yet. Start the conversation with ${escapeHtml(receiverName)}!</p></div>`;
                     return;
                 }
 
-                const currentSender = getChatSenderName();
+                const currentSenderId = getChatSenderId();
                 container.innerHTML = messages.map(msg => {
-                    const isSent = msg.sender === currentSender || (currentDoctorId && msg.sender === currentDoctorId);
+                    const isSent = msg.sender === currentSenderId;
                     const messageClass = isSent ? 'sent' : 'received';
+                    const senderName = isSent ? (currentDoctorName || 'You') : (receiverName || msg.sender);
                     return `
                         <div class="chat-message ${messageClass}">
-                            <div class="chat-message-header">${msg.sender}</div>
+                            <div class="chat-message-header">${escapeHtml(senderName)}</div>
                             <div class="chat-message-text">${escapeHtml(msg.message)}</div>
                             <div class="chat-message-time">${formatChatTime(msg.timestamp)}</div>
                         </div>
@@ -2411,13 +2572,38 @@
                 return div.innerHTML;
             }
 
+            async function openConversation(receiverId, receiverName) {
+                currentReceiverId = receiverId;
+                currentReceiverName = receiverName;
+                document.getElementById('conversationsList').style.display = 'none';
+                document.getElementById('chatMessagesView').style.display = 'flex';
+                document.getElementById('backToConversationsBtn').style.display = 'block';
+                document.getElementById('chatModalLabel').innerHTML = `<i class="fas fa-comments me-2"></i>${escapeHtml(receiverName)}`;
+                
+                const messages = await loadChatMessages(receiverId, 100);
+                renderChatMessages(messages, receiverName);
+                startChatAutoRefresh();
+            }
+
+            function backToConversations() {
+                currentReceiverId = null;
+                currentReceiverName = null;
+                document.getElementById('conversationsList').style.display = 'block';
+                document.getElementById('chatMessagesView').style.display = 'none';
+                document.getElementById('backToConversationsBtn').style.display = 'none';
+                document.getElementById('chatModalLabel').innerHTML = '<i class="fas fa-comments me-2"></i>Messages';
+                stopChatAutoRefresh();
+                loadAndRenderConversations();
+            }
+
             async function sendChatMessage(message) {
-                if (!message || !message.trim()) return false;
-                const sender = getChatSenderName();
+                if (!message || !message.trim() || !currentReceiverId) return false;
+                const senderId = getChatSenderId();
                 try {
                     const result = await apiCall('', 'GET', {
                         action: 'sendChatMessage',
-                        sender: sender,
+                        sender: senderId,
+                        receiver: currentReceiverId,
                         message: message.trim()
                     });
                     if (result.status === 'success') {
@@ -2432,12 +2618,13 @@
 
             function startChatAutoRefresh() {
                 stopChatAutoRefresh();
+                if (!currentReceiverId) return;
                 chatRefreshTimer = setInterval(async () => {
                     try {
-                        const messages = await loadChatMessages(50, lastChatTimestamp);
+                        const messages = await loadChatMessages(currentReceiverId, 50, lastChatTimestamp);
                         if (messages.length > 0) {
-                            const allMessages = await loadChatMessages(100);
-                            renderChatMessages(allMessages);
+                            const allMessages = await loadChatMessages(currentReceiverId, 100);
+                            renderChatMessages(allMessages, currentReceiverName);
                         }
                     } catch (err) {
                         console.warn('Chat auto-refresh failed', err);
@@ -2452,15 +2639,51 @@
                 }
             }
 
+            function startConversationsAutoRefresh() {
+                stopConversationsAutoRefresh();
+                conversationsRefreshTimer = setInterval(async () => {
+                    await loadAndRenderConversations();
+                }, 5000);
+            }
+
+            function stopConversationsAutoRefresh() {
+                if (conversationsRefreshTimer) {
+                    clearInterval(conversationsRefreshTimer);
+                    conversationsRefreshTimer = null;
+                }
+            }
+
+            async function loadAndRenderConversations() {
+                const conversations = await loadConversations();
+                renderConversations(conversations);
+            }
+
+            function updateChatNotification() {
+                const chatBtn = document.getElementById('chatBtn');
+                if (!chatBtn) return;
+                
+                let badge = chatBtn.querySelector('.fab-notification');
+                if (totalUnreadCount > 0) {
+                    if (!badge) {
+                        badge = document.createElement('div');
+                        badge.className = 'fab-notification';
+                        chatBtn.style.position = 'relative';
+                        chatBtn.appendChild(badge);
+                    }
+                    badge.textContent = totalUnreadCount > 99 ? '99+' : totalUnreadCount;
+                    badge.style.display = 'flex';
+                } else if (badge) {
+                    badge.style.display = 'none';
+                }
+            }
+
             const chatBtn = document.getElementById('chatBtn');
             if (chatBtn) {
                 chatBtn.addEventListener('click', async () => {
                     const modal = new bootstrap.Modal(document.getElementById('chatModal'));
                     modal.show();
-                    
-                    const messages = await loadChatMessages(100);
-                    renderChatMessages(messages);
-                    startChatAutoRefresh();
+                    backToConversations();
+                    startConversationsAutoRefresh();
                 });
             }
 
@@ -2468,7 +2691,14 @@
             if (chatModal) {
                 chatModal.addEventListener('hidden.bs.modal', () => {
                     stopChatAutoRefresh();
+                    stopConversationsAutoRefresh();
+                    backToConversations();
                 });
+            }
+
+            const backToConversationsBtn = document.getElementById('backToConversationsBtn');
+            if (backToConversationsBtn) {
+                backToConversationsBtn.addEventListener('click', backToConversations);
             }
 
             const chatForm = document.getElementById('chatForm');
@@ -2477,7 +2707,7 @@
                     e.preventDefault();
                     const input = document.getElementById('chatMessageInput');
                     const message = input.value.trim();
-                    if (!message) return;
+                    if (!message || !currentReceiverId) return;
                     
                     const sendBtn = document.getElementById('sendChatBtn');
                     sendBtn.disabled = true;
@@ -2486,8 +2716,9 @@
                     const success = await sendChatMessage(message);
                     if (success) {
                         input.value = '';
-                        const messages = await loadChatMessages(100);
-                        renderChatMessages(messages);
+                        const messages = await loadChatMessages(currentReceiverId, 100);
+                        renderChatMessages(messages, currentReceiverName);
+                        await loadAndRenderConversations();
                     } else {
                         showNotification('Failed to send message', 'danger');
                     }
@@ -2503,13 +2734,22 @@
                     try {
                         await apiCall('', 'GET', { action: 'clearChatCache' });
                         showNotification('Chat cache cleared', 'success');
-                        const messages = await loadChatMessages(100);
-                        renderChatMessages(messages);
+                        await loadAndRenderConversations();
+                        if (currentReceiverId) {
+                            const messages = await loadChatMessages(currentReceiverId, 100);
+                            renderChatMessages(messages, currentReceiverName);
+                        }
                     } catch (error) {
                         showNotification('Failed to clear cache', 'danger');
                     }
                 });
             }
+
+            setInterval(async () => {
+                if (getChatSenderId() !== 'PUBLIC') {
+                    await loadAndRenderConversations();
+                }
+            }, 10000);
 
             // Restore state from URL hash (handled after initial load)
         });
