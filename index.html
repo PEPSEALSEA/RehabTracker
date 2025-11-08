@@ -2792,7 +2792,7 @@
                     } finally {
                         chatRefreshInFlight = false;
                     }
-                }, 1200);
+                }, 3000);
             }
 
             function stopChatAutoRefresh() {
@@ -2806,7 +2806,7 @@
                 stopConversationsAutoRefresh();
                 conversationsRefreshTimer = setInterval(async () => {
                     await loadAndRenderConversations();
-                }, 4000);
+                }, 3000);
             }
 
             function stopConversationsAutoRefresh() {
@@ -2957,9 +2957,12 @@
 
             setInterval(async () => {
                 if (getChatSenderId() !== 'PUBLIC') {
-                    await loadAndRenderConversations();
+                    // Skip if modal-specific refresh is active to avoid duplicate work
+                    if (!conversationsRefreshTimer) {
+                        await loadAndRenderConversations();
+                    }
                 }
-            }, 6000);
+            }, 3000);
 
             // Restore state from URL hash (handled after initial load)
         });
