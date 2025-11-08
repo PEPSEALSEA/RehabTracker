@@ -3417,41 +3417,17 @@
                     y += 18;
                 }
 
-                const rows = (patientData && patientData.lastSevenDays) ? patientData.lastSevenDays : [];
-                if (rows.length) {
-                    doc.setFontSize(13);
-                    doc.text('Recent Data (up to 7):', margin, y);
-                    y += 14;
-                    doc.setFontSize(11);
-                    const header = ['Date','Pulse','Pulse MA','Movement','Move MA','Sleep','Status'];
-                    const colW = [140, 60, 60, 70, 70, 60, 70];
-                    const drawRow = (arr) => {
-                        let x = margin;
-                        arr.forEach((cell, i) => {
-                            const cellText = String(cell ?? '');
-                            doc.text(cellText, x, y, { maxWidth: colW[i] - 4 });
-                            x += colW[i];
-                        });
-                        y += 14;
-                        if (y > pageH - margin) { 
-                            doc.addPage(); 
-                            y = margin; 
-                        }
-                    };
-                    drawRow(header);
-                    rows.forEach(r => {
-                        const date = formatLocalTime(r.timestamp);
-                        const pulse = r.pulse ?? '';
-                        const pulseMA = r.pulseMA ?? '';
-                        const movement = formatMovement(r.movementMagnitude);
-                        const moveMA = r.movementMA ?? '';
-                        const sleep = formatSleepScore(r.sleepQualityScore);
-                        const status = (r.isPulseAnomaly ? 'Anomaly' : 'Normal');
-                        drawRow([date, pulse, pulseMA, movement, moveMA, sleep, status]);
-                    });
-                    y += 6;
+                // Ensure we have up to 500 recent rows specifically for export
+                let exportRows = [];
+                try {
+                    const doctorIdToSend = getDoctorId() || 'PUBLIC';
+                    const exportRes = await apiCall('', 'GET', { action: 'getPatientData', doctorId: doctorIdToSend, patientId: selectedPatientId, limit: 500 }, { attempts: 2, suppressErrorNotify: true });
+                    exportRows = (exportRes && (exportRes.recentData || exportRes.lastSevenDays)) ? (exportRes.recentData || exportRes.lastSevenDays) : [];
+                } catch {
+                    exportRows = (patientData && (patientData.recentData || patientData.lastSevenDays)) ? (patientData.recentData || patientData.lastSevenDays) : [];
                 }
 
+                // Put Today's Activity graph first in the report
                 const addCanvas = (canvasId, title) => {
                     try {
                     const el = document.getElementById(canvasId);
@@ -3490,7 +3466,42 @@
                     }
                 };
 
+                // 1) Today's Activity first
                 addCanvas('realtimeChart', 'Today\'s Activity');
+
+                // 2) Recent Data table (up to 500)
+                if (exportRows.length) {
+                    doc.setFontSize(13);
+                    doc.text('Recent Data (up to 500):', margin, y);
+                    y += 14;
+                    doc.setFontSize(11);
+                    const header = ['Date','Pulse','Pulse MA','Movement','Move MA','Sleep','Status'];
+                    const colW = [140, 60, 60, 70, 70, 60, 70];
+                    const drawRow = (arr) => {
+                        let x = margin;
+                        arr.forEach((cell, i) => {
+                            const cellText = String(cell ?? '');
+                            doc.text(cellText, x, y, { maxWidth: colW[i] - 4 });
+                            x += colW[i];
+                        });
+                        y += 14;
+                        if (y > pageH - margin) { doc.addPage(); y = margin; }
+                    };
+                    drawRow(header);
+                    exportRows.slice(0, 500).forEach(r => {
+                        const date = formatLocalTime(r.timestamp);
+                        const pulse = r.pulse ?? '';
+                        const pulseMA = r.pulseMA ?? '';
+                        const movement = formatMovement(r.movementMagnitude);
+                        const moveMA = r.movementMA ?? '';
+                        const sleep = formatSleepScore(r.sleepQualityScore);
+                        const status = (r.isPulseAnomaly ? 'Anomaly' : 'Normal');
+                        drawRow([date, pulse, pulseMA, movement, moveMA, sleep, status]);
+                    });
+                    y += 6;
+                }
+
+                // 3) Other charts
                 addCanvas('movementChart', '7-Day Movement Trend');
                 addCanvas('progressChart', 'Overall Progress');
                 addCanvas('pulseDetailChart', 'Pulse History');
