@@ -1654,7 +1654,7 @@
             });
         }
 
-        async function apiCall(endpoint, method = 'GET', data = null) {
+        async function apiCall(endpoint, method = 'GET', data = null, options = {}) {
             const url = new URL(scriptUrl);
             if (data) {
                 Object.keys(data).forEach(key => {
@@ -1662,13 +1662,17 @@
                     url.searchParams.append(key, typeof val === 'object' ? JSON.stringify(val) : String(val));
                 });
             }
+            const attempts = options.attempts || 2;
+            const suppressErrorNotify = !!options.suppressErrorNotify;
             try {
-                const result = await jsonp(url);
+                const result = await jsonp(url, attempts);
                 if (result.status === 'error') throw new Error(result.message);
                 return result;
             } catch (error) {
                 console.error('API error:', { url: url.toString(), error });
-                showNotification('Backend request failed: ' + (error && error.message ? error.message : 'Unknown error'), 'danger');
+                if (!suppressErrorNotify) {
+                    showNotification('Backend request failed: ' + (error && error.message ? error.message : 'Unknown error'), 'danger');
+                }
                 throw error;
             }
         }
@@ -2651,8 +2655,9 @@
                     if ((msg.senderId || msg.sender) === currentSenderId) {
                         const pending = container.querySelector('.chat-message.sent.pending[data-pending="1"]');
                         if (pending) {
-                            const txt = pending.getAttribute('data-message-text') || '';
-                            if ((msg.message || '') === txt) {
+                            const pendingTextEl = pending.querySelector('.chat-message-text');
+                            const pendingTxt = pendingTextEl ? pendingTextEl.textContent : '';
+                            if ((msg.message || '') === pendingTxt) {
                                 pending.remove();
                             }
                         }
@@ -2707,7 +2712,7 @@
                 // Attempt to mark messages as read server-side (if supported)
                 try {
                     const senderId = getChatSenderId();
-                    await apiCall('', 'GET', { action: 'markChatRead', senderId: senderId, otherId: receiverId });
+                    await apiCall('', 'GET', { action: 'markChatRead', senderId: senderId, otherId: receiverId }, { suppressErrorNotify: true });
                 } catch (_) { /* optional endpoint may not exist */ }
                 // Refresh conversations/unread counts after opening
                 await loadAndRenderConversations();
@@ -2731,6 +2736,7 @@
                 const senderType = 'doctor';
                 // Enforce doctor <-> patient chat direction
                 const receiverType = 'patient';
+                const clientMessageId = 'C' + Date.now() + '_' + Math.random().toString(36).slice(2,8).toUpperCase();
                 try {
                     const result = await apiCall('', 'GET', {
                         action: 'sendChatMessage',
@@ -2738,8 +2744,9 @@
                         senderType: senderType,
                         receiver: currentReceiverId,
                         receiverType: receiverType,
-                        message: message.trim()
-                    });
+                        message: message.trim(),
+                        messageId: clientMessageId
+                    }, { attempts: 1 });
                     if (result.status === 'success') {
                         return true;
                     }
@@ -2890,20 +2897,12 @@
                     const success = await sendChatMessage(message);
                     if (success) {
                         input.value = '';
-                        // Mark last pending bubble as confirmed (remove pending state)
-                        const container = document.getElementById('chatMessages');
-                        const lastPending = container && container.querySelector('.chat-message.sent.pending[data-pending="1"]');
-                        if (lastPending) {
-                            lastPending.classList.remove('pending');
-                            lastPending.removeAttribute('data-pending');
-                            const timeEl = lastPending.querySelector('.chat-message-time');
-                            if (timeEl) timeEl.textContent = formatChatTime(new Date().toISOString());
-                        }
+                        // Keep the pending bubble; it will be replaced by the confirmed message on next refresh
                         await loadAndRenderConversations();
                     } else {
                         // Remove pending bubble on failure
                         const container = document.getElementById('chatMessages');
-                        const lastPending = container && container.querySelector('.chat-message.sent.pending[data-pending="1"]');
+                        const lastPending = container && container.querySelector('.chat-message.sent.pending[data-pending=\"1\"]');
                         if (lastPending) lastPending.remove();
                         showNotification('Failed to send message', 'danger');
                     }
