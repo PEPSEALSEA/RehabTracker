@@ -2895,8 +2895,18 @@
                 const senderId = getChatSenderId();
                 if (!senderId || !receiverId) return [];
                 try {
+                    // Avoid duplicates when the server treats `since` as inclusive (>=)
+                    let sinceParam = since;
+                    if (sinceParam) {
+                        try {
+                            const d = new Date(sinceParam);
+                            if (!isNaN(d)) {
+                                sinceParam = new Date(d.getTime() + 1).toISOString();
+                            }
+                        } catch (_) { /* best-effort */ }
+                    }
                     const params = { action: 'getChatMessages', senderId: senderId, receiverId: receiverId, limit: limit };
-                    if (since) params.since = since;
+                    if (sinceParam) params.since = sinceParam;
                     const result = await apiCall('', 'GET', params);
                     if (result.status === 'success' && result.messages) {
                         return result.messages;
@@ -2962,6 +2972,21 @@
                         const existing = container.querySelector(`.chat-message[data-message-id="${msg.messageId}"]`);
                         if (existing) {
                             return;
+                        }
+                    } else {
+                        // Fallback dedupe: match by senderId + timestamp + text
+                        const senderId = (msg.senderId || msg.sender || '').toString();
+                        const ts = (msg.timestamp || '').toString();
+                        const existingEls = container.querySelectorAll('.chat-message');
+                        for (const el of existingEls) {
+                            const ds = el.dataset || {};
+                            if ((ds.senderId || '') === senderId && (ds.timestamp || '') === ts) {
+                                const textEl = el.querySelector('.chat-message-text');
+                                const existingText = textEl ? textEl.textContent : '';
+                                if (existingText === (msg.message || '')) {
+                                    return; // duplicate
+                                }
+                            }
                         }
                     }
                     // If there is a pending (optimistic) bubble matching same id/text from current user, remove it
