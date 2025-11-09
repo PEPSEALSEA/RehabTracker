@@ -1543,10 +1543,6 @@
                 </div>
         </main>
 
-        <!-- Floating Action Button for Chat -->
-        <button class="fab" id="chatBtn" title="Open Chat">
-            <i class="fas fa-comments"></i>
-        </button>
 
     </div>
 
@@ -1704,6 +1700,11 @@
             </div>
         </div>
     </div>
+
+    <!-- Floating Action Button for Chat -->
+    <button class="fab" id="chatBtn" title="Open Chat">
+        <i class="fas fa-comments"></i>
+    </button>
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -1931,12 +1932,8 @@
         }
 
         function getDoctorId() {
-            if (isPublicSession()) {
-                currentDoctorId = 'PUBLIC';
-                return 'PUBLIC';
-            }
-            // If you later store a cookie like doctorId=XYZ, parse it here
-            // For now, fallback to PUBLIC when not available
+            // Do NOT mutate currentDoctorId here. Just return the in-memory value
+            // (optionally backed by storage in the future).
             return currentDoctorId || 'PUBLIC';
         }
 
@@ -3152,13 +3149,24 @@
                 }
 
                 const currentSenderId = getChatSenderId();
-                const html = messages.map(msg => createMessageBubbleHTML(msg, receiverName, currentSenderId)).join('');
+                // Deduplicate by messageId or (senderId + timestamp + message)
+                const seen = new Set();
+                const deduped = [];
+                for (const msg of messages) {
+                    const key = (msg.messageId && String(msg.messageId).trim())
+                        ? 'id:' + String(msg.messageId).trim()
+                        : 'stt:' + String(msg.senderId || msg.sender || '') + '|' + String(msg.timestamp || '') + '|' + String(msg.message || '');
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    deduped.push(msg);
+                }
+                const html = deduped.map(msg => createMessageBubbleHTML(msg, receiverName, currentSenderId)).join('');
                 container.innerHTML = html;
                 container.scrollTop = container.scrollHeight;
-                currentChatMessages = messages.slice();
-                if (messages.length > 0) {
-                    lastChatTimestamp = messages[messages.length - 1].timestamp;
-                    lastServerChatTimestamp = messages[messages.length - 1].timestamp;
+                currentChatMessages = deduped.slice();
+                if (deduped.length > 0) {
+                    lastChatTimestamp = deduped[deduped.length - 1].timestamp;
+                    lastServerChatTimestamp = deduped[deduped.length - 1].timestamp;
                 }
             }
 
