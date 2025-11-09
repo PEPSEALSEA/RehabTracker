@@ -1273,6 +1273,18 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Recovery Delay Check Card -->
+                            <div class="card mt-3">
+                                <div class="card-header d-flex align-items-center justify-content-between">
+                                    <h5 class="mb-0">Recovery Delay Check</h5>
+                                    <span id="recoveryStatusBadge" class="badge badge-success">On Track</span>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-2" id="recoveryStatusText">We evaluate adherence, movement trend, sleep, and pulse anomalies for delay risk.</p>
+                                    <ul id="recoveryReasonsList" class="mb-0"></ul>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Detailed Metrics Tab -->
@@ -2049,6 +2061,11 @@
             const stats = computeWeekStats(last7);
             const progressVal = computeProgressScore(stats);
             updateProgressKpis(stats, progressVal);
+            // Recovery delay status
+            try {
+                const delayInfo = computeRecoveryDelay(last7);
+                updateRecoveryDelayUI(delayInfo);
+            } catch (e) { /* non-fatal */ }
             if (charts.progress) {
                 charts.progress.data.datasets[0].data = [progressVal, 100 - progressVal];
                 charts.progress.update();
@@ -2240,6 +2257,61 @@
             const w = { movement: 0.35, pulse: 0.25, sleep: 0.30, adherence: 0.10 };
             const score = movementScore*w.movement + pulseScore*w.pulse + sleepScore*w.sleep + adherenceScore*w.adherence;
             return Math.round(score);
+        }
+        // Heuristic recovery delay detector using last 7 days
+        function computeRecoveryDelay(last7) {
+            const safeNums = (arr) => arr.map(v => Number(v)).filter(v => Number.isFinite(v));
+            const movements = safeNums(last7.map(r => getMovementForChart(r.movementMagnitude)));
+            const sleeps = safeNums(last7.map(r => r.sleepQualityScore));
+            const anomalies = (last7 || []).filter(r => r && (r.isPulseAnomaly === true || r.isPulseAnomaly === 'TRUE' || r.isPulseAnomaly === 1 || r.isPulseAnomaly === '1')).length;
+            const stats = computeWeekStats(last7 || []);
+            const reasons = [];
+            // Adherence
+            if ((stats.adherencePercent || 0) < 50) reasons.push(`Low adherence (${stats.adherencePercent || 0}%)`);
+            // Movement trend (percent change from first to last)
+            if (movements.length >= 2) {
+                const first = movements[0];
+                const last = movements[movements.length - 1];
+                const pct = first > 0 ? ((last - first) / first) * 100 : 0;
+                if (pct < -5) reasons.push('Movement trending down over last 7 days');
+            }
+            // Sleep quality low
+            if (sleeps.length) {
+                const avgSleep = sleeps.reduce((a,b)=>a+b,0) / sleeps.length;
+                if (avgSleep < 50) reasons.push(`Low average sleep score (${Math.round(avgSleep)})`);
+            }
+            // Frequent anomalies
+            if (anomalies >= 2) reasons.push(`Frequent pulse anomalies (${anomalies} in 7d)`);
+            // Consider delayed if at least 2 risk factors, otherwise on track
+            const delayed = reasons.length >= 2;
+            return { delayed, reasons, metrics: { adherencePercent: stats.adherencePercent || 0, anomalies, avgSleep: (sleeps.length ? Math.round(sleeps.reduce((a,b)=>a+b,0)/sleeps.length) : null) } };
+        }
+        function updateRecoveryDelayUI(info) {
+            try {
+                const badge = document.getElementById('recoveryStatusBadge');
+                const text = document.getElementById('recoveryStatusText');
+                const list = document.getElementById('recoveryReasonsList');
+                if (!badge || !text || !list) return;
+                // Update badge style/text
+                badge.classList.remove('badge-success','badge-danger','badge-warning');
+                if (info.delayed) {
+                    badge.classList.add('badge-danger');
+                    badge.textContent = 'At Risk';
+                } else {
+                    badge.classList.add('badge-success');
+                    badge.textContent = 'On Track';
+                }
+                // Update explanatory text and reasons
+                text.textContent = info.delayed ? 'Potential recovery delay detected based on recent trends:' : 'No delay indicators detected in the last 7 days.';
+                list.innerHTML = '';
+                if (info.delayed && Array.isArray(info.reasons)) {
+                    info.reasons.forEach(r => {
+                        const li = document.createElement('li');
+                        li.textContent = r;
+                        list.appendChild(li);
+                    });
+                }
+            } catch (_) { /* best-effort UI */ }
         }
         function updateProgressKpis(stats, progressVal) {
             const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -3491,6 +3563,20 @@
                         console.warn(`Error adding canvas ${canvasId}:`, err);
                     }
                 };
+
+                // Recovery Delay Check section
+                try {
+                    const last7ForDelay = exportRows.slice(-7);
+                    const delayInfo = computeRecoveryDelay(last7ForDelay);
+                    doc.setFontSize(13);
+                    doc.text(`Recovery Delay Check: ${delayInfo.delayed ? 'At Risk' : 'On Track'}`, margin, y);
+                    y += 14;
+                    if (delayInfo.delayed && Array.isArray(delayInfo.reasons)) {
+                        doc.setFontSize(11);
+                        delayInfo.reasons.forEach(r => { doc.text(`• ${r}`, margin + 12, y); y += 14; });
+                    }
+                    y += 6;
+                } catch (_) { /* best-effort in PDF */ }
 
                 // 1) Today's Activity first
                 addCanvas('realtimeChart', 'Today\'s Activity');
