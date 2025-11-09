@@ -3188,48 +3188,68 @@
                 const currentSenderId = getChatSenderId();
 
                 newMessages.forEach(msg => {
-                    // Dedupe by messageId if present
+                    // Normalize common fields
+                    const incomingSenderId = (msg.senderId || msg.sender || '').toString();
+                    const incomingText = (msg.message || '').toString();
+                    const incomingTs = (msg.timestamp || '').toString();
+
+                    // Strong dedupe #1: messageId
                     if (msg.messageId) {
                         const existing = container.querySelector(`.chat-message[data-message-id="${msg.messageId}"]`);
-                        if (existing) {
-                            return;
-                        }
-                    } else {
-                        // Fallback dedupe: match by senderId + timestamp + text
-                        const senderId = (msg.senderId || msg.sender || '').toString();
-                        const ts = (msg.timestamp || '').toString();
+                        if (existing) return;
+                    }
+
+                    // Strong dedupe #2: same sender + same timestamp + same text
+                    {
                         const existingEls = container.querySelectorAll('.chat-message');
                         for (const el of existingEls) {
                             const ds = el.dataset || {};
-                            if ((ds.senderId || '') === senderId && (ds.timestamp || '') === ts) {
+                            if ((ds.senderId || '') === incomingSenderId && (ds.timestamp || '') === incomingTs) {
                                 const textEl = el.querySelector('.chat-message-text');
                                 const existingText = textEl ? textEl.textContent : '';
-                                if (existingText === (msg.message || '')) {
-                                    return; // duplicate
+                                if (existingText === incomingText) return; // duplicate
+                            }
+                        }
+                    }
+
+                    // Extra safety dedupe #3: same sender + same text within last 5 seconds
+                    {
+                        const fiveSecMs = 5000;
+                        const incomingTime = Date.parse(incomingTs);
+                        if (!Number.isNaN(incomingTime)) {
+                            const existingEls = Array.from(container.querySelectorAll('.chat-message'));
+                            for (let i = existingEls.length - 1; i >= 0; i--) {
+                                const el = existingEls[i];
+                                const ds = el.dataset || {};
+                                if ((ds.senderId || '') !== incomingSenderId) continue;
+                                const textEl = el.querySelector('.chat-message-text');
+                                const existingText = textEl ? textEl.textContent : '';
+                                if (existingText !== incomingText) continue;
+                                const dsTime = Date.parse(ds.timestamp || '');
+                                if (!Number.isNaN(dsTime) && Math.abs(incomingTime - dsTime) <= fiveSecMs) {
+                                    return; // likely duplicate from polling edge cases
                                 }
                             }
                         }
                     }
+
                     // If there is a pending (optimistic) bubble matching same id/text from current user, remove it
-                    if ((msg.senderId || msg.sender) === currentSenderId) {
+                    if (incomingSenderId === currentSenderId) {
                         let pending = null;
                         if (msg.messageId) {
-                            pending = container.querySelector(`.chat-message.sent.pending[data-pending="1"][data-message-id="${msg.messageId}"]`);
+                            pending = container.querySelector(`.chat-message.sent.pending[data-pending="1"][data-message-id=\"${msg.messageId}\"]`);
                         }
                         if (!pending) {
                             pending = container.querySelector('.chat-message.sent.pending[data-pending="1"]');
                             if (pending) {
                                 const pendingTextEl = pending.querySelector('.chat-message-text');
                                 const pendingTxt = pendingTextEl ? pendingTextEl.textContent : '';
-                                if ((msg.message || '') !== pendingTxt) {
-                                    pending = null;
-                                }
+                                if (incomingText !== pendingTxt) pending = null;
                             }
                         }
-                        if (pending) {
-                            pending.remove();
-                        }
+                        if (pending) pending.remove();
                     }
+
                     const html = createMessageBubbleHTML(msg, receiverName, currentSenderId);
                     container.insertAdjacentHTML('beforeend', html);
                     currentChatMessages.push(msg);
@@ -3404,7 +3424,6 @@
                     if (!badge) {
                         badge = document.createElement('div');
                         badge.className = 'fab-notification';
-                        chatBtn.style.position = 'relative';
                         chatBtn.appendChild(badge);
                     }
                     badge.textContent = totalUnreadCount > 99 ? '99+' : totalUnreadCount;
